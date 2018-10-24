@@ -3,9 +3,9 @@ set -x
 set -e
 set -u
 
-DIRS="/Users/sjf/GoogleMusicUploads /Users/sjf/Soulseek\ Downloads/complete/"
+DIRS="/Users/sjf/GoogleMusicUploads /Users/sjf/SoulseekDownloads/complete/"
 ENCODER=~/scripts/tomp3
 
-find  $DIRS  -iname '*.wav' -a -type f -exec $ENCODER {} \; 
+find $DIRS -iname '*.wav' -a -type f -exec $ENCODER {} \; 
 
-fswatch -0 $DIRS|xargs -0 -n1 $ENCODER
+fswatch -0 "$DIRS" | xargs -0 -n1 $ENCODER
