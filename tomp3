@@ -6,8 +6,6 @@ FILE="$@"
 EXT=${FILE##*.}
 TMP=${FILE}.tmp
 DEST=${FILE%.*}.mp3
-echo $FILE
-echo $EXT
 shopt -s nocasematch
 if [[ "${EXT}" == "wav" && ! -f "$DEST" ]]; then
  echo Converting $FILE to $DEST 
