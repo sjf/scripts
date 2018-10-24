@@ -1,0 +1,17 @@
+#!/bin/bash
+set -x
+#set -e
+
+FILE="$@"
+EXT=${FILE##*.}
+TMP=${FILE}.tmp
+DEST=${FILE%.*}.mp3
+echo $FILE
+echo $EXT
+shopt -s nocasematch
+if [[ "${EXT}" == "wav" && ! -f "$DEST" ]]; then
+ echo Converting $FILE to $DEST 
+ lame --quiet -h -b 192 "$FILE" "$TMP"
+ mv "$TMP" "$DEST"
+fi
+exit 0
