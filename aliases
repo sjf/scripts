@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Shortcuts
+alias f=less
+
+alias lr='ls -tr'
+alias lf='ls -tr|tail -1|xargs less'
+alias r='ls -tr|tail -1|xargs'
+
+# One liners
+alias lc="perl -ne 'print lc;'"
+alias hex="hexdump -C"
+
+# Adjustments to standard unix commands
+alias ls="gls --color=auto"
+alias cp='cp -i'
+alias rm='rm -i'
+alias mv='mv -i'
+alias grpe=grep
+
+# Development
+alias py=python3
