@@ -11,6 +11,8 @@ alias r='ls -tr|tail -1|xargs'
 alias lc="perl -ne 'print lc;'"
 alias hex="hexdump -C"
 
+alias histgrep='history|grep'
+
 # Adjustments to standard unix commands
 alias ls="gls --color=auto"
 alias cp='cp -i'

@@ -2,7 +2,7 @@
 set -u
 set -x
 set -e
-name=~/bin/$1
+name=~/scripts/$1
 if [ ! -f $name ]; then
   cat << EOF > $name
 #!/bin/bash
