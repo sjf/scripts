@@ -1,0 +1,6 @@
+#!/bin/bash
+set -x #print commands
+set -u #fail for unset vars
+set -e #exit on errors
+python -m SimpleHTTPServer 8080
+
