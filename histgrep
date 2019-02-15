@@ -1,0 +1,6 @@
+#!/bin/bash
+if [ -z "$1" ]; then
+ exit
+fi
+grep "$@" ~/bash_history  2>/dev/null | grep -v "^histgrep"
+grep "$@" ~/.bash_history | grep -v "^histgrep"

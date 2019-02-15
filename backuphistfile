@@ -1,0 +1,8 @@
+#!/bin/bash
+#set -x #print commands
+set -u #fail for unset vars
+set -e #exit on errors
+
+mv ~/.bash_history /tmp/temp.$$
+cat /tmp/temp.$$ >> ~/bash_history
+touch ~/.bash_history

@@ -1,0 +1,6 @@
+#!/bin/bash
+set -x #print commands
+set -e #exit on failed command
+set -u #fail on undefined variable
+
+sshfs sjf@$(gip deb):/e/sjf/ deb/ -o allow_other,volname=deb
