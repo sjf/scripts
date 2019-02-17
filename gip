@@ -3,4 +3,5 @@
 set -e #exit on failed command
 set -u #fail on undefined variable
 
-gcloud compute instances list|grep ^$1|awk '{print $5}'
+#gcloud compute instances list|grep ^$1|awk '{print $5}'
+echo deb.sjf.io
