@@ -5,5 +5,5 @@ set -u #fail on undefined variable
 if [ -f "/opt/sublime_text/sublime_text" ];then
  /opt/sublime_text/sublime_text 
 else
- open /Applications/Sublime\ Text.app $@
+ /Applications/Sublime\ Text.app/Contents/SharedSupport/bin/subl $@
 fi
