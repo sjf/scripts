@@ -3,7 +3,7 @@ set -x #print commands
 set -e #exit on failed command
 set -u #fail on undefined variable
 if [ -f "/opt/sublime_text/sublime_text" ];then
- /opt/sublime_text/sublime_text 
+ /opt/sublime_text/sublime_text $@
 else
  /Applications/Sublime\ Text.app/Contents/SharedSupport/bin/subl $@
 fi
