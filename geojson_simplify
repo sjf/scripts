@@ -1,0 +1,8 @@
+#!/bin/bash
+set -x #print commands
+set -e #exit on failed command
+set -u #fail on undefined variable
+
+FILE=$1
+PC=${2:-10%}
+mapshaper "$FILE" -simplify dp "$PC" --o format=geojson $(basename "$FILE" .geojson)_simple.geojson
