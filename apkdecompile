@@ -1,0 +1,14 @@
+#!/bin/bash
+set -x #print commands
+#set -e #exit on failed command
+set -u #fail on undefined variable
+
+A="$1"
+DIR=$(basename "$A" .apk)
+mkdir $DIR
+cp "$A" $DIR
+cd $DIR
+unp "$A"
+dex2jar classes.dex
+jdgui classes-dex2jar.jar
+

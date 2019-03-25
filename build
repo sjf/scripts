@@ -5,7 +5,7 @@ set -u #fail on undefined variable
 
 cd ~/ouifennec && ./build.sh $@
 if [ $? -eq 0 ];then
- ls -al gecko-dev/obj-arm-linux-androideabi/dist/ceno-64.0.1.en-US.android-arm.apk
+ ls -al $(realpath gecko-dev/obj-arm-linux-androideabi/dist/ceno-64.0.1.en-US.android-arm.apk)
  date
  true
 else 
