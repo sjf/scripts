@@ -1,0 +1,8 @@
+#!/bin/bash
+set -x #print commands
+set -e #exit on failed command
+set -u #fail on undefined variable
+
+F=${1%\.*}
+ogr2ogr -f GeoJSON -t_srs crs:84 "$F.geojson" "$F.shp"
+
