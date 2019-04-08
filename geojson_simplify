@@ -1,8 +1,12 @@
 #!/bin/bash
 set -x #print commands
 set -e #exit on failed command
-set -u #fail on undefined variable
-
+#set -u #fail on undefined variable
+if [ -z $1 ];then
+ echo Useage: $(basename $0) \[FILE\] \<percentage of vertices to retain, default 90\>
+ exit
+fi
 FILE=$1
-PC=${2:-10%}
-mapshaper "$FILE" -simplify dp "$PC" --o format=geojson $(basename "$FILE" .geojson)_simple.geojson
+PC=${2:-90}
+# Retain $PC, e.g. 90% of vertices
+mapshaper "$FILE" -simplify dp "$PC%" --o format=geojson $(basename "$FILE" .geojson)_simple_${PC}.geojson

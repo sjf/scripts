@@ -2,6 +2,6 @@
 set -x #print commands
 set -e #exit on failed command
 set -u #fail on undefined variable
-
-perl -lne "END {print \$c} \$c += s/$1//g" "$2"
+perl -lne "END {print \$c} map ++\$c, /$1/g" "$2"
+#perl -lne "END {print \$c} \$c += s/$1//g" "$2"
 
