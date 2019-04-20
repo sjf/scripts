@@ -1,14 +1,16 @@
 #!/bin/bash
-set -x #print commands
+#set -x #print commands
 #set -e #exit on failed command
 set -u #fail on undefined variable
+echo `date` Build started >> ~/.buildlog
 
 cd ~/ouifennec && ./build.sh $@
 if [ $? -eq 0 ];then
- ls -al $(realpath gecko-dev/obj-arm-linux-androideabi/dist/ceno-64.0.1.en-US.android-arm.apk)
  date
+ echo `date` Build finished >> ~/.buildlog
  true
 else 
  notify-send "Build failed"
+ echo `date` Build failed >> ~/.buildlog
  false
 fi

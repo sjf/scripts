@@ -1,9 +1,15 @@
 #!/bin/bash
-set -x #print commands
-set -e #exit on failed command
-set -u #fail on undefined variable
-adb uninstall ie.equalit.ceno
-adb install -r -d ~/ouifennec/gecko-dev/obj-arm-linux-androideabi/dist/ceno-64.0.1.en-US.android-arm.apk
+#set -x #print commands
+#set -e #exit on failed command
+#set -u #fail on undefined variable
+adb uninstall ie.equalit.ceno 2>/dev/null
+if [ "$1" == "-r" ]; then
+  APK=~/ouifennec/gecko-dev/obj-arm-linux-androideabi-release/gradle/build/mobile/android/app/outputs/apk/withGeckoBinaries/release/app-withGeckoBinaries-release.apk
+else
+  APK=~/ouifennec/gecko-dev/obj-arm-linux-androideabi/dist/ceno-66.0.3.multi.android-arm.apk
+fi
+ls -alh $APK
+adb install -r -d $APK
 if [ $? -eq 0 ];then
  notify-send "adb install" "APK installed"
 else
