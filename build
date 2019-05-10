@@ -4,13 +4,13 @@
 set -u #fail on undefined variable
 echo `date` Build started >> ~/.buildlog
 
-cd ~/ouifennec && ./build.sh $@
+cd ~/ouifennec && ./build.sh -x ~/ouinet.xml $@
 if [ $? -eq 0 ];then
  date
- echo `date` Build finished >> ~/.buildlog
+ echo `date` Build finished `pwd` >> ~/.buildlog
  true
 else 
  notify-send "Build failed"
- echo `date` Build failed >> ~/.buildlog
+ echo `date` Build failed `pwd` >> ~/.buildlog
  false
 fi
