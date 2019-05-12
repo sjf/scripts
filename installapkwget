@@ -1,6 +1,0 @@
-#!/bin/bash
-set -x #print commands
-set -e #exit on failed command
-set -u #fail on undefined variable
-IP=$(gip)
-wget --http-user=sjf --http-passwd=sa238 "http://${IP}/build/ceno-64.0.1.en-US.android-arm.apk" -O ~/Downloads/ceno-64.0.1.en-US.android-arm.apk && adb install ~/Downloads/ceno-64.0.1.en-US.android-arm.apk
