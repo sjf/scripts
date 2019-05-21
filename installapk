@@ -9,6 +9,7 @@ elif [ -n "$1" ];then
   APK=$1
 else
   APK=~/ouifennec/gecko-dev/obj-arm-linux-androideabi/dist/ceno-66.0.3.multi.android-arm.apk
+  APK=/home/sjf/ouifennec/gecko-dev/obj-arm-unknown-linux-androideabi/dist/ceno-67.0.en-US.android-arm.apk
 fi
 ls -alh "$APK"
 adb install -r -d "$APK"

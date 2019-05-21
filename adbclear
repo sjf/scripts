@@ -2,5 +2,5 @@
 set -x #print commands
 set -e #exit on failed command
 set -u #fail on undefined variable
-
-adb shell pm clear $1
+APP=${1:-ie.equalit.ceno}
+adb shell pm clear $APP
