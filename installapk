@@ -5,11 +5,14 @@
 adb uninstall ie.equalit.ceno 2>/dev/null
 if [ "$1" == "-r" ]; then
   APK=~/ouifennec/gecko-dev/obj-arm-linux-androideabi-release/gradle/build/mobile/android/app/outputs/apk/withGeckoBinaries/release/app-withGeckoBinaries-release.apk
+elif [ -n "$1" ];then
+  APK=$1
 else
   APK=~/ouifennec/gecko-dev/obj-arm-linux-androideabi/dist/ceno-66.0.3.multi.android-arm.apk
+  APK=/home/sjf/ouifennec/gecko-dev/obj-arm-unknown-linux-androideabi/dist/ceno-67.0.en-US.android-arm.apk
 fi
-ls -alh $APK
-adb install -r -d $APK
+ls -alh "$APK"
+adb install -r -d "$APK"
 if [ $? -eq 0 ];then
  notify-send "adb install" "APK installed"
 else
