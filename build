@@ -2,15 +2,15 @@
 #set -x #print commands
 #set -e #exit on failed command
 set -u #fail on undefined variable
-echo `date` Build started >> ~/.buildlog
+echo `date` "Build started $@" >> ~/.buildlog
 
 cd ~/ouifennec && ./build.sh -x ~/ouinet.xml $@
 if [ $? -eq 0 ];then
  date
- echo `date` Build finished `pwd` >> ~/.buildlog
+ echo `date` "   Build finished" `pwd` >> ~/.buildlog
  true
-else 
+else
  notify-send "Build failed"
- echo `date` Build failed `pwd` >> ~/.buildlog
+ echo `date` "   Build failed" `pwd` >> ~/.buildlog
  false
 fi

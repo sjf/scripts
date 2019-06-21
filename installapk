@@ -1,8 +1,8 @@
 #!/bin/bash
-#set -x #print commands
+set -x #print commands
 #set -e #exit on failed command
 #set -u #fail on undefined variable
-adb uninstall ie.equalit.ceno 2>/dev/null
+#adb uninstall ie.equalit.ceno 2>/dev/null
 if [ "$1" == "-r" ]; then
   APK=~/ouifennec/gecko-dev/obj-arm-linux-androideabi-release/gradle/build/mobile/android/app/outputs/apk/withGeckoBinaries/release/app-withGeckoBinaries-release.apk
 elif [ -n "$1" ];then
