@@ -19,7 +19,7 @@ class requestHandler(BaseHTTPRequestHandler):
     self.end_headers()
 
     # Send message back to client
-    message = '{"auto_refresh":true,"injector_proxy":true,"ipfs_cache":false,"origin_access":true,"proxy_access":false}'
+    message = '{"auto_refresh":true,"injector_proxy":true,"ipfs_cache":false,"origin_access":true,"proxy_access":false, "ouinet_version": "1.23 345435af2340998ebc23409 12/34/2019 12:34:56Z release"}'
     # Write content as utf-8 data
     self.wfile.write(bytes(message, "utf8"))
     return
