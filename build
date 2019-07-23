@@ -4,7 +4,7 @@
 set -u #fail on undefined variable
 echo `date` "Build started $@" >> ~/.buildlog
 
-cd ~/ouifennec && ./build.sh -x ~/ouinet.xml $@
+cd ~/release/ouifennec && ./build.sh -x ~/ouinet.xml $@
 if [ $? -eq 0 ];then
  date
  echo `date` "   Build finished" `pwd` >> ~/.buildlog
