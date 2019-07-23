@@ -3,4 +3,4 @@ set -x #print commands
 set -e #exit on failed command
 set -u #fail on undefined variable
 
-mount -t smbfs //sjf:sjf@192.168.8.5/sjf smb/
+mount -t smbfs //sjf:sjf@192.168.8.5/sjf ~/smb/
