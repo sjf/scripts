@@ -4,9 +4,9 @@
 set -u #fail on undefined variable
 
 NAME=$1; shift
-if [ $# -eq 0 ];then 
+if [ $# -eq 0 ];then
  DIRS="."
-else 
+else
  DIRS=$@
 fi
 for DIR in $DIRS; do
