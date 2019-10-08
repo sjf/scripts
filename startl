@@ -1,0 +1,13 @@
+#!/bin/bash
+set -x #print commands
+set -e #exit on failed command
+set -u #fail on undefined variable
+
+cd leetcode
+cp $(realpath Solution.java) q$1.java
+cp $(realpath Driver.java) q$1Driver.java
+rm Solution.java
+rm Driver.java
+ln -s q$1.java Solution.java
+ln -s q$1Driver.java Driver.java
+ 

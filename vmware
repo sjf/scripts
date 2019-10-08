@@ -2,5 +2,7 @@
 #set -x #print commands
 #set -e #exit on failed command
 #set -u #fail on undefined variable
-
+if [ ! -f ~/smb/.bashrc ];then
+  mntsmbfs
+fi
 ssh vmware.local
