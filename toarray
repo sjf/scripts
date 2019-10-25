@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+import subprocess
+in_ = input('> ')
+out = in_.replace('[','{').replace(']','}')
+print(out)
+
+process=subprocess.Popen(['pbcopy'],
+                         encoding='utf8',
+                         stdin=subprocess.PIPE)
+process.communicate(input=out)
