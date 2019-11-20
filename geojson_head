@@ -3,6 +3,8 @@
 import sys, getopt
 from data.geojson import *
 from data.log import *
+import pygeoj
+import tempfile
 
 
 optlist, args = getopt.getopt(sys.argv[1:], 'n:')
@@ -14,7 +16,18 @@ if len(args) != 1:
   fail("Usage: %s [-n COUNT] FILE" % (sys.argv[0]))
 
 geojson = read_geojson(args[0])
+out = pygeoj.new()
 for i in range(count):
-  print(geojson[i])
+  #print(geojson[i])
+  out.add_feature(geojson[i])
 
+# pygeoj will only save to file
+temp = tempfile.NamedTemporaryFile()
+try:
+  out.save(temp.name)
+  temp.seek(0)
+  print(str(temp.read(), encoding='UTF-8'))
+finally:
+  # Automatically cleans up the file
+  temp.close()
 
