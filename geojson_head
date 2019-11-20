@@ -8,9 +8,11 @@ import tempfile
 
 
 optlist, args = getopt.getopt(sys.argv[1:], 'n:')
+
 count = 10
-if '-n' in optlist:
-  count = optlist['-n']
+for flag,val in optlist:
+  if '-n' == flag:
+    count = int(val)
 
 if len(args) != 1:
   fail("Usage: %s [-n COUNT] FILE" % (sys.argv[0]))
