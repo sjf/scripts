@@ -49,7 +49,7 @@ detector = UniversalDetector()
 for row in db:
     for col in row:
         if type(col) == type(b''):
-            print(type(col), col)
+            #print(type(col), col)
             detector.feed(col)
             if detector.done: break
 detector.close()
@@ -59,6 +59,7 @@ encoding = detector.result["encoding"]
 if encoding=="ascii":
     encoding="LATIN1"
 
-cmd = "shp2pgsql -s %s -i -I -W %s %s> %s.sql; psql <%s.sql" % (srid, encoding, shp_file, table, table)
+cmd = "shp2pgsql -s %s -i -I -W %s %s %s > %s.sql; psql <%s.sql" % (srid, encoding, shp_file, table, table, table)
 print(cmd)
-os.system(cmd)
+res = os.system(cmd)
+sys.exit(res)
