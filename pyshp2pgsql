@@ -59,7 +59,7 @@ encoding = detector.result["encoding"]
 if encoding=="ascii":
     encoding="LATIN1"
 
-cmd = "shp2pgsql -s %s -i -I -W %s %s %s > %s.sql; psql <%s.sql" % (srid, encoding, shp_file, table, table, table)
+cmd = "shp2pgsql -d -s %s -i -I -W %s %s %s > %s.sql; psql <%s.sql" % (srid, encoding, shp_file, table, table, table)
 print(cmd)
 res = os.system(cmd)
 sys.exit(res)
