@@ -2,5 +2,6 @@
 #set -x #print commands
 set -e #exit on failed command
 set -u #fail on undefined variable
-
+# This script doesnt work properly on some versions of mac
+ismac && exit
 echo -ne "\033]0;$@\007"
