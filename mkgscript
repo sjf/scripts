@@ -1,0 +1,17 @@
+#!/bin/bash
+set -u
+set -e
+set -x
+
+name=~/gscripts/$1
+if [ ! -f $name ]; then
+  cat << EOF > $name
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+set -x #print commands
+
+EOF
+fi
+chmod a+x $name
+vim "+normal G$" +startinsert $name
