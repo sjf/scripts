@@ -1,0 +1,20 @@
+#!/bin/bash
+#set -x #print commands
+#set -e #exit on failed command
+set -u #fail on undefined variable
+PROG=$1
+
+CMD=$@
+RES=1
+INTERVAL=5s
+set -x
+$CMD
+set +x
+RES=$?
+while [ $RES != 0 ]; do
+  sleep $INTERVAL
+  set -x
+  $CMD
+  set +x
+  RES=$?
+done
