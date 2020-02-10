@@ -1,4 +1,4 @@
-NAME=$1
+NAME="sfortune-${1}"
 export CLOUDSDK_CORE_PROJECT=$NAME
 
 # function gc_properties() {
