@@ -1,6 +1,9 @@
-NAME="sfortune-${1}"
-export CLOUDSDK_CORE_PROJECT=$NAME
-
+if [ -z "$1" ]; then
+  unset CLOUDSDK_CORE_PROJECT
+else
+  NAME="sfortune-${1}"
+  export CLOUDSDK_CORE_PROJECT=$NAME
+fi
 # function gc_properties() {
 #   CONFIG=$(gcloud config list)
 
