@@ -14,4 +14,4 @@ set -x #print commands
 EOF
 fi
 chmod a+x $name
-subl $name
+sublime $name
