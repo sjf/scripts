@@ -1,0 +1,6 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+set -x #print commands
+
+ssh -p 37099 -o ExitOnForwardFailure=yes -f -N -L 9000:localhost:90 oak.sjf.io
