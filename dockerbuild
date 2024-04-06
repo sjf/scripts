@@ -1,0 +1,21 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+set -x #print commands
+
+if [ ! -f Dockerfile ]; then
+	echo Dockerfile not found in $(pwd)
+	exit 1
+fi
+open -a /Applications/Docker.app
+
+
+docker buildx build --platform linux/amd64,linux/arm/v8 -t sjf0/apache:latest --push .
+
+docker build -t apache-x86 --platform linux/amd64 .
+docker tag apache-x86 sjf0/apache:gcp
+docker push sjf0/apache:gcp
+
+docker build -t apache-arm --platform linux/arm/v8 .
+docker tag apache-arm sjf0/apache:mac
+docker push sjf0/apache:mac

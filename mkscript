@@ -6,13 +6,14 @@ name=~/scripts/$1
 if [ ! -f $name ]; then
   cat << EOF > $name
 #!/bin/bash
-set -x #print commands
 set -e #exit on failed command
 set -u #fail on undefined variable
+set -x #print commands
 
 EOF
 fi
 chmod a+x $name
+<<<<<<< HEAD
 is_mac && exec subl $name
 
 vim "+normal G$" +startinsert $name

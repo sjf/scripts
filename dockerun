@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+set -x #print commands
+
+
+LOCALPORT=9090
+CONTAINERPORT=8080
+#CONTAINERPORT=80
+
+docker run  -p ${LOCALPORT}:${CONTAINERPORT} $1
+#docker run --rm -p ${LOCALPORT}:${CONTAINERPORT} $1
