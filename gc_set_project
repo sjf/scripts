@@ -1,0 +1,8 @@
+#!/bin/bash
+#set -x #print commands
+#set -e #exit on failed command
+set -u #fail on undefined variable
+
+gcloud config set project $1
+#export CLOUDSDK_CORE_PROJECT=$1
+
