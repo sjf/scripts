@@ -1,15 +1,28 @@
 #!/bin/bash
-#set -x
+set -x
 #set -e
 
-FILE="$@"
-EXT=${FILE##*.}
-TMP=${FILE}.tmp
-DEST=${FILE%.*}.mp3
+FILE="$1"
+EXTOUT="${2:-mp3}"
+EXTIN=${FILE##*.}
+
+TMP=${FILE}.tmp.$EXTOUT
+DEST=${FILE%.*}.$EXTOUT
+
 shopt -s nocasematch
-if [[ "${EXT}" == "wav" && ! -f "$DEST" ]]; then
- echo Converting $FILE to $DEST 
- lame --quiet -h -b 192 "$FILE" "$TMP"
- mv "$TMP" "$DEST"
+if [[ -f "$DEST" ]]; then
+   echo Not converting $FILE, destination already exists: $DEST
+   exit 1
 fi
+
+echo Converting $FILE to $DEST
+
+if [[ "$EXTIN" == "flac" ]]; then
+  ffmpeg -i "$FILE" -aq 1 "$TMP"
+else
+lame --quiet -h -b 192 "$FILE" "$TMP"
+fi
+
+mv "$TMP" "$DEST"
+
 exit 0
