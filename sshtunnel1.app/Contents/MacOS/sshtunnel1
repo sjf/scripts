@@ -1,0 +1,10 @@
+#!/bin/bash
+#set -e #exit on failed command
+#set -u #fail on undefined variable
+#set -x #print commands
+
+F=/tmp/sshtunnel.log
+
+echo Starting script $(date) >> $F 2>&1
+/Users/sjf/scripts/sshtunnel.sh >> $F 2>&1
+echo after>> $F 2>&1

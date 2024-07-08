@@ -3,4 +3,31 @@ set -e #exit on failed command
 set -u #fail on undefined variable
 set -x #print commands
 
-ssh -p 37099 -o ExitOnForwardFailure=yes -f -N -L 9000:localhost:90 oak.sjf.io
+HOST=oak.sjf.io
+PORT=37099
+
+for i in "$@"; do
+  case $i in
+    # -e=*|--extension=*)
+    #   EXTENSION="${i#*=}"
+    #   shift # past argument=value
+    #   ;;
+    # -s=*|--searchpath=*)
+    #   SEARCHPATH="${i#*=}"
+    #   shift # past argument=value
+    #   ;;
+    -l)
+      HOST=192.168.0.5
+      PORT=22
+      shift # past argument with no value
+      ;;
+    -*|--*)
+      echo "Unknown option $i"
+      exit 1
+      ;;
+    *)
+      ;;
+  esac
+done
+
+ssh -p $PORT -o ExitOnForwardFailure=yes -f -N -L 8000:localhost:80 $HOST
