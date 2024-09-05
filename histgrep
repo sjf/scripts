@@ -1,5 +1,0 @@
-#!/bin/bash
-if [ -z "$1" ]; then
- exit
-fi
-grep "$@" ~/.logs/*  | cut -d' ' -f 4- | grep -v "^histgrep"
