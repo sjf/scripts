@@ -13,8 +13,8 @@ set -x #print commands
 EOF
 fi
 chmod a+x $name
-<<<<<<< HEAD
-is_mac && exec subl $name
+
+is_mac && exec sublime $name
 
 vim "+normal G$" +startinsert $name
 
