@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+# set -x #print commands
+
+if is_mac; then
+  echo This doesnt work on mac
+  exit 1
+fi
+netstat -ntlp 2>/dev/null|egrep '(0\.0\.0\.0:[0-9]|:::[0-9])'
