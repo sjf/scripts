@@ -112,6 +112,9 @@ case "$NAME" in
   "dcd")
     dcd "$@"
     ;;
+  "dcs")
+    dcd "$@"
+    ;;
   "bash")
     # this happens if this file is sourced
     ;;
