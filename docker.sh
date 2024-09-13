@@ -67,9 +67,15 @@ function dcs() {
     echo "Not stopping everything, pass container name"
     return
   fi
-
-  echo "Continue to stop '$@'"
-  read
+  FORCE=
+  if [ "$1" == "-f" ];then
+    shift
+    FORCE="yes"
+  fi
+  if [ -z $FORCE ]; then
+    echo "Continue to stop '$@'"
+    read
+  fi
   set -x
   docker compose stop "$@"
   set +x
@@ -82,11 +88,17 @@ function dcd() {
     echo "Not downing everything, pass container name"
     return
   fi
-
-  echo "Continue to down '$@'"
-  echo " ** This removes the container (but not the volumes)"
-  echo " ** To stop the container running use 'dcs'"
-  read
+  FORCE=
+  if [ "$1" == "-f" ];then
+    shift
+    FORCE="yes"
+  fi
+  if [ -z $FORCE ]; then
+    echo "Continue to down '$@'"
+    echo " ** This removes the container (but not the volumes)"
+    echo " ** To stop the container running use 'dcs'"
+    read
+  fi
   set -x
   docker compose down "$@"
   set +x
@@ -101,7 +113,7 @@ function dcu() {
   fi
 
   set -x
-  docker compose up -d "$@"
+  docker compose up --remove-orphans -d "$@"
   set +x
 }
 

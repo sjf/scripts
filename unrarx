@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+# set -x #print commands
+
+# force override
+# unrar x -o+ -idq # quiet
+unrar x -o+
