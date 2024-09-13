@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+# set -x #print commands
+echo $PATH|sed 's|:|\n|g'

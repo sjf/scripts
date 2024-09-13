@@ -1,5 +1,6 @@
-# alias dcu='docker compose up -d'
-# alias dps='docker ps'
+#!/usr/bin/env bash
+# ^^ this needs bash 4+, mac is only on 3.
+# Use the first bash from the path.
 
 function dlogs() {
   if [ -z "$@" ]; then
@@ -28,10 +29,7 @@ function dattach(){
 }
 
 function drebuild(){
-  if [ ! -f "compose.yaml" ];then
-    echo "Not in docker compose directory"
-    return
-  fi
+  check_compose_dir
 
   FORCE=
   if [ "$1" == "-f" ];then
@@ -63,10 +61,8 @@ function drebuild(){
 }
 
 function dcs() {
-  if [ ! -f "compose.yaml" ];then
-    echo "Not in docker compose directory"
-    return
-  fi
+  check_compose_dir
+
   if [ -z "$1" ]; then
     echo "Not stopping everything, pass container name"
     return
@@ -80,10 +76,8 @@ function dcs() {
 }
 
 function dcd() {
-  if [ ! -f "compose.yaml" ];then
-    echo "Not in docker compose directory"
-    return
-  fi
+  check_compose_dir
+
   if [ -z "$1" ]; then
     echo "Not downing everything, pass container name"
     return
@@ -98,25 +92,44 @@ function dcd() {
   set +x
 }
 
+function dcu() {
+  check_compose_dir
+
+  if [ -z "$1" ]; then
+    echo "Not up-ing everything, pass container name"
+    return
+  fi
+
+  set -x
+  docker compose up -d "$@"
+  set +x
+}
+
+function check_compose_dir(){
+  if [ ! -f "compose.yaml" ];then
+    echo "Not in docker compose directory"
+    exit 1
+  fi
+}
+
 NAME=`basename $0`
 case "$NAME" in
   "dlogs")
-    dlogs "$@"
-    ;;
+    ;&
   "dattach")
-    dattach "$@"
-    ;;
+    ;&
   "drebuild")
-    drebuild "$@"
-    ;;
+    ;&
   "dcd")
-    dcd "$@"
-    ;;
+    ;&
   "dcs")
-    dcd "$@"
+    ;&
+  "dcu")
+    # all supported commands fall through to here.
+    $NAME "$@"
     ;;
   "bash")
-    # this happens if this file is sourced
+    # this happens if this file is sourced.
     ;;
   *)
     echo "Unhandled case: $NAME"
