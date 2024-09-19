@@ -1,0 +1,14 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+set -x #print commands
+
+if [[ -z "${1:-}" ]]; then
+  echo "Usage: ssh_tunnel remote-host remote-port local-port"
+  exit
+fi
+REMOTE_HOST=$1
+REMOTE_PORT=$2
+LOCAL_PORT=$3
+
+ssh -f -N -L $LOCAL_PORT:localhost:$REMOTE_PORT $REMOTE_HOST

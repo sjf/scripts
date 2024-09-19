@@ -118,10 +118,14 @@ function dcu() {
 }
 
 function check_compose_dir(){
-  if [ ! -f "compose.yaml" ];then
-    echo "Not in docker compose directory"
-    exit 1
-  fi
+  while [[ "$PWD" == $HOME/* ]]; do
+    if [ -f "compose.yaml" ]; then
+      echo $PWD/compose.yaml
+      return
+    fi
+    cd ..
+  done
+  echo "Not in docker compose directory"
 }
 
 NAME=`basename $0`
