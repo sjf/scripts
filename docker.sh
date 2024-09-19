@@ -57,7 +57,7 @@ function drebuild(){
   docker compose up --build --force-recreate --no-deps --remove-orphans -d "$@"
   set +x
   echo "Showing '$@' logs with -f (Quitting will not stop the container.)"
-  docker compose logs -f "$@"
+  dlogs "$@"
 }
 
 function dcs() {
@@ -115,6 +115,8 @@ function dcu() {
   set -x
   docker compose up --remove-orphans -d "$@"
   set +x
+  echo "Showing '$@' logs with -f (Quitting will not stop the container.)"
+  dlogs "$@"
 }
 
 function check_compose_dir(){
