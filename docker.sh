@@ -54,7 +54,8 @@ function drebuild(){
     read
   fi
   set -x
-  docker compose up --build --force-recreate --no-deps --remove-orphans -d "$@"
+  # Use --force-recreate to completely rebuild the container and not use cached layers.
+  docker compose up --build --no-deps --remove-orphans -d "$@"
   set +x
   echo "Showing '$@' logs with -f (Quitting will not stop the container.)"
   dlogs "$@"
@@ -113,7 +114,7 @@ function dcu() {
   fi
 
   set -x
-  docker compose up --remove-orphans -d "$@"
+  docker compose up --no-deps --remove-orphans -d "$@"
   set +x
   echo "Showing '$@' logs with -f (Quitting will not stop the container.)"
   dlogs "$@"
