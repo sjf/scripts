@@ -3,11 +3,11 @@
 # Use the first bash from the path.
 
 function dlogs() {
-  if [ -z "$@" ]; then
-    echo "Missing container name"
-    return
-  fi
-  docker logs -f "$@"
+  # if [ -z "$@" ]; then
+  #   echo "Missing container name"
+  #   return
+  # fi
+  docker compose logs -f "$@"
 }
 
 function dattach(){
@@ -30,6 +30,7 @@ function dattach(){
 
 function drebuild(){
   check_compose_dir
+  ARGS=$(compose_files)
 
   FORCE=
   if [ "$1" == "-f" ];then
@@ -55,14 +56,16 @@ function drebuild(){
   fi
   set -x
   # Use --force-recreate to completely rebuild the container and not use cached layers.
-  docker compose up --build --no-deps --remove-orphans -d "$@"
+  docker compose $ARGS up --build --no-deps --remove-orphans -d "$@"
   set +x
-  echo "Showing '$@' logs with -f (Quitting will not stop the container.)"
-  dlogs "$@"
+  # echo "Showing '$NAMES' logs with -f (Quitting will not stop the container.)"
+  # dlogs "$@"
+  wait_for_containers.sh 2 40 $NAMES
 }
 
 function dcs() {
   check_compose_dir
+  ARGS=$(compose_files)
 
   if [ -z "$1" ]; then
     echo "Not stopping everything, pass container name"
@@ -78,12 +81,13 @@ function dcs() {
     read
   fi
   set -x
-  docker compose stop "$@"
+  docker compose $ARGS stop "$@"
   set +x
 }
 
 function dcd() {
   check_compose_dir
+  ARGS=$(compose_files)
 
   if [ -z "$1" ]; then
     echo "Not downing everything, pass container name"
@@ -101,34 +105,47 @@ function dcd() {
     read
   fi
   set -x
-  docker compose down "$@"
+  docker compose $ARGS down "$@"
   set +x
 }
 
 function dcu() {
   check_compose_dir
+  ARGS=$(compose_files)
 
-  if [ -z "$1" ]; then
-    echo "Not up-ing everything, pass container name"
-    return
-  fi
+  # if [ -z "$1" ]; then
+  #   echo "Not up-ing everything, pass container name"
+  #   return
+  # fi
 
   set -x
-  docker compose up --no-deps --remove-orphans -d "$@"
+  docker compose $ARGS up --no-deps --remove-orphans -d "$@"
   set +x
-  echo "Showing '$@' logs with -f (Quitting will not stop the container.)"
-  dlogs "$@"
+  # echo "Showing '$@' logs with -f (Quitting will not stop the container.)"
+  # dlogs "$@"
+  wait_for_containers.sh 2 40 "$@"
 }
 
 function check_compose_dir(){
   while [[ "$PWD" == $HOME/* ]]; do
-    if [ -f "compose.yaml" ]; then
-      echo $PWD/compose.yaml
+    if [[ -f "compose.yaml" ]]; then
       return
     fi
     cd ..
   done
-  echo "Not in docker compose directory"
+  if [[ ! -f "compose.yaml" ]]; then
+    echo "Not in docker compose directory"
+    exit 1
+  fi
+}
+
+function compose_files(){
+  if [[ -n "$DOCKER_ENV" && -f "compose.${DOCKER_ENV}.yaml" ]]; then
+    echo $PWD/compose.yaml $PWD/compose.${DOCKER_ENV}.yaml >&2
+    echo "-f compose.yaml -f compose.${DOCKER_ENV}.yaml"
+  else
+    echo $PWD/compose.yaml >&2
+  fi
 }
 
 NAME=`basename $0`
