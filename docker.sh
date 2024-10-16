@@ -37,7 +37,9 @@ function drebuild(){
     shift
     FORCE="yes"
   fi
-
+  if [ "$DOCKER_ENV" == "dev" ];then
+    FORCE="yes"
+  fi
 
   if [ -z "$1" ]; then
     echo "Not rebuilding everything, pass container name"
@@ -76,6 +78,9 @@ function dcs() {
     shift
     FORCE="yes"
   fi
+  if [ "$DOCKER_ENV" == "dev" ];then
+    FORCE="yes"
+  fi
   if [ -z $FORCE ]; then
     echo "Continue to stop '$@'"
     read
@@ -96,6 +101,9 @@ function dcd() {
   FORCE=
   if [ "$1" == "-f" ];then
     shift
+    FORCE="yes"
+  fi
+  if [ "$DOCKER_ENV" == "dev" ];then
     FORCE="yes"
   fi
   if [ -z $FORCE ]; then
