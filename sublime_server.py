@@ -21,7 +21,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
       if local_file:
         open_sublime(local_file)
-        code,content = 200, f"OK {local_file}"
+        code,content = 200, f"OK {remote_file} -> {local_file}"
       else:
         code,content = 404, f"No mount point for {remote_file}"
 
@@ -36,7 +36,7 @@ class RequestHandler(BaseHTTPRequestHandler):
     self.send_response(code)
     self.send_header('Content-type','text/plain')
     self.end_headers()
-    self.wfile.write(bytes(content, "utf8"))
+    self.wfile.write(bytes(content+'\n', "utf8"))
 
 def get_mounts():
   cmd = "mount|grep sjf|grep box: | cut -d' ' -f1,3|sed 's|box:||'"
