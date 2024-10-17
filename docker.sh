@@ -97,6 +97,11 @@ function dcd() {
   if [ -z "$1" ]; then
     echo "Not downing everything, pass container name"
     return
+  elif [ "$1" == "all" ];then
+    shift
+    NAMES=all
+  else
+    NAMES="$@"
   fi
   FORCE=
   if [ "$1" == "-f" ];then
@@ -107,7 +112,7 @@ function dcd() {
     FORCE="yes"
   fi
   if [ -z $FORCE ]; then
-    echo "Continue to down '$@'"
+    echo "Continue to down '$NAMES'"
     echo " ** This removes the container (but not the volumes)"
     echo " ** To stop the container running use 'dcs'"
     read
