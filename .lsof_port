@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+# set -x #print commands
+
+PIDS=$(lsof -i:$1 |grep -v PID|sed 's/[[:space:]]\+/ /g'|cut -d' ' -f2)
+
+[ "$PIDS" ] && ps -o pid,user:20,time,cmd --width=120 -p $PIDS
