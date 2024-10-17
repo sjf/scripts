@@ -6,8 +6,6 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, parse_qs
 import subprocess
 
-mounts = {}
-
 class RequestHandler(BaseHTTPRequestHandler):
   def do_GET(self):
     try:
@@ -47,7 +45,7 @@ class RequestHandler(BaseHTTPRequestHandler):
     self.end_headers()
     self.wfile.write(bytes(content+'\n', "utf8"))
 
-def get_mounts():
+def get_mounts(output=False):
   cmd = "mount|grep sjf|grep box: | cut -d' ' -f1,3|sed 's|box:||'"
   output = subprocess.run(cmd, shell=True, check=True, stdout=subprocess.PIPE, text=True).stdout
   result = {}
@@ -56,14 +54,16 @@ def get_mounts():
       continue
     parts = l.split(" ")
     result[parts[0]] = parts[1]
-  for k,v in result.items():
-    print(f"{k}:\t{v}")
+  if output:
+    for k,v in result.items():
+      print(f"{k}:\t{v}")
   return result
 
 def open_sublime(f):
   subprocess.run(f"/Users/sjf/scripts/sublime {f}", shell=True, check=True)
 
 def get_local_path(f):
+  mounts = get_mounts()
   for remote_prefix,local_prefix in mounts.items():
     if f.startswith(remote_prefix):
       return f.replace(remote_prefix, local_prefix)
@@ -76,8 +76,7 @@ def start_tunnel(local_port, remote_host, remote_port):
   subprocess.run(cmd, shell=True, check=True)
 
 def run():
-  global mounts
-  mounts = get_mounts()
+  get_mounts(output=True)
 
   bind = ('127.0.0.1', 8000)
   remote_host, remote_port = 'box', 3456
