@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import sys
+import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, parse_qs
 import subprocess
@@ -13,10 +15,17 @@ class RequestHandler(BaseHTTPRequestHandler):
       params = parse_qs(url.query)
       # print(params)
       if 'f' not in params:
-        self.send("No param", 400)
+        self.send("No filename param", 400)
+        return
+      remote_file = params['f'][0]
+
+      ip = self.client_address[0]
+      print(f"Request from: {ip} '{remote_file}'")
+
+      if ".." in remote_file:
+        self.send(str("Filename rejected"), 500)
         return
 
-      remote_file = params['f'][0]
       local_file = get_local_path(remote_file)
 
       if local_file:
@@ -61,14 +70,36 @@ def get_local_path(f):
   return None
   # raise Exception(f"Could not find mount point for {f}")
 
+def start_tunnel(local_port, remote_host, remote_port):
+  cmd = f"ssh -o ExitOnForwardFailure=yes  -N -R 127.0.0.1:{remote_port}:127.0.0.1:{local_port} {remote_host}"
+  print(cmd)
+  subprocess.run(cmd, shell=True, check=True)
+
 def run():
   global mounts
   mounts = get_mounts()
 
-  server_address = ('0.0.0.0', 8000)
-  print('starting server... http://%s:%d' % server_address)
-  httpd = HTTPServer(server_address, RequestHandler)
+  bind = ('127.0.0.1', 8000)
+  remote_host, remote_port = 'box', 3456
+  if len(sys.argv) > 1:
+    try:
+      parts = sys.argv[1].split(':')
+      bind = (parts[0], int(parts[1]))
+      if len(sys.argv) > 2:
+        parts = sys.argv[2].split(':')
+        remote_host, remote_port = (parts[0], int(parts[1]))
+    except Exception as e:
+      print("Usage: {sys.argv[0]} local_address:local_port [remote_host:remote_port]")
+      raise e
+
+  print('starting server... http://%s:%d' % bind)
+  httpd = HTTPServer(bind, RequestHandler)
   print('running server...')
-  httpd.serve_forever()
+  serving = threading.Thread(target=httpd.serve_forever)
+  serving.start()
+  if remote_host:
+    local_port = bind[1]
+    tunnel = threading.Thread(target=lambda:start_tunnel(local_port, remote_host, remote_port))
+    tunnel.start()
 
 run()
