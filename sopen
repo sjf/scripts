@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e #exit on failed command
 set -u #fail on undefined variable
-set -x #print commands
+# set -x #print commands
 
-curl 192.168.0.63:8000/?f=$(realpath $1)
+HOST=localhost
+PORT=3456
+curl $HOST:$PORT/?f=$(realpath $1)
