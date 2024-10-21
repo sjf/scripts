@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x #print commands
+#set -x #print commands
 set -e #exit on failed command
 set -u #fail on undefined variable
 if [ -f "/opt/sublime_text/sublime_text" ];then
