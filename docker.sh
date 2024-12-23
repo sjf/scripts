@@ -58,7 +58,7 @@ function drebuild(){
   fi
   set -x
   # Use --force-recreate to completely rebuild the container and not use cached layers.
-  docker compose $ARGS up --build --no-deps --remove-orphans -d "$@"
+  docker compose $ARGS up --build --no-deps --remove-orphans -d "$@" || exit 1
   set +x
   # echo "Showing '$NAMES' logs with -f (Quitting will not stop the container.)"
   # dlogs "$@"
