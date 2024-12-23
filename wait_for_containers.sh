@@ -11,6 +11,13 @@ failed=0
 while [ ${#containers[@]} -gt 0 ]; do
   not_ready=()
   for container in "${containers[@]}"; do
+    health=$(docker inspect --format='{{.State.Health}}' $container)
+    if [[ $health == "<nil>" ]]; then
+      echo "$container does not have a health check."
+      echo -n "$container running: "
+      docker inspect --format='{{.State.Running}}' $container
+      continue
+    fi
     status=$(docker inspect --format='{{.State.Health.Status}}' $container)
     if [ "$status" == "healthy" ]; then
       echo "$container became healthy in $elapsed seconds!"
