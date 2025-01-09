@@ -2,6 +2,6 @@
 set -x #print commands
 set -u #fail for unset vars
 set -e #exit on errors
-PORT=${1:-8080}
+# python -m SimpleHTTPServer 8080
+PORT=${1:-8081}
 python3 -m http.server $PORT
-
