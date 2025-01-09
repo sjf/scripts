@@ -8,15 +8,18 @@ fi
 
 LOG_FILES="$@"
 DEST=.
+CONFIG=$HOME/scripts/.goaccess.conf
+GEO_IP_DB=$HOME/scripts/.goaccess-geoip.mmdb
+SELF=$HOME/sjf/self.txt
 
 TEMP_DIR=$(mktemp -d /tmp/goaccess.XXXX)
 mkdir -p $TEMP_DIR
 
-GOACCESS="goaccess --no-progress -p ~/scripts/.goaccess.conf --geoip-database=~/scripts/.goaccess-geoip.mmdb --db-path=${TEMP_DIR}"
+GOACCESS="goaccess --no-progress -p $CONFIG --geoip-database=$GEO_IP_DB --db-path=${TEMP_DIR}"
 
 # Remove internal requests
-if [ -f secrets/self.txt ]; then
-  zcat -f $LOG_FILES | egrep -v $(cat secrets/self.txt) > ${TEMP_DIR}/access.log
+if [ -f $SELF ]; then
+  zcat -f $LOG_FILES | egrep -v $(cat $SELF) > ${TEMP_DIR}/access.log
 else
   zcat -f $LOG_FILES > ${TEMP_DIR}/access.log
 fi
