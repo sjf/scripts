@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+set -x #print commands
+INPUT=$1
+OUTPUT="${INPUT%.*}.mkv"
+ffmpeg -y -i "$INPUT" -crf 18 -map 0 -acodec copy -scodec copy -c:v libx264 -preset veryslow "$OUTPUT"
+
+# OUTPUT="${INPUT%.*}.mov"
+# ffmpeg -f data -i "$INPUT" -c copy -map 0 -tag:0 gpmd "$OUTPUT"
+# ffmpeg -i samples/hero5.mp4 -i temp.mov -c:v copy -c:a copy -map 0:0 -map 0:1 -map 0:2 -map 1:0 -tag:v avc1 -tag:a mp4a -map_metadata 0:g -map_metadata:s:a 0:s:a -map_metadata:s:v 0:s:v -map_metadata:s:2 0:s:2 -map_metadata:s:3 0:s:3 test.mp4

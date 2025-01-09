@@ -5,7 +5,10 @@ from http.server import SimpleHTTPRequestHandler, HTTPServer
 
 class CustomHandler(SimpleHTTPRequestHandler):
   def end_headers(self):
+    # print(self.headers)
+    # if not 'Content-Type' in self.headers:
     self.send_header('Content-Type', 'text/html')
+    self.send_header('Cache-Control','no-store, no-cache, must-revalidate, max-age=0')
     super().end_headers()
 
 port = 8081
