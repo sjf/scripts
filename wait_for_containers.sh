@@ -8,6 +8,20 @@ elapsed=0
 containers=("$@")
 failed=0
 
+containers=()
+for service in $@; do
+  # Get the container name
+  name=`docker compose ps --format=json| jq -rc "select(.Service == \"$service\") | .Name"`
+  if [ -z $name ]; then
+    echo Couldn\'t find container for service $service.
+    let failed+=1
+  fi
+  containers+=("$name")
+
+done
+
+echo "${containers[@]}"
+
 while [ ${#containers[@]} -gt 0 ]; do
   not_ready=()
   for container in "${containers[@]}"; do
