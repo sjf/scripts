@@ -11,16 +11,16 @@ failed=0
 containers=()
 for service in $@; do
   # Get the container name
-  name=`docker compose ps --format=json| jq -rc "select(.Service == \"$service\") | .Name"`
+  name=`service_to_container $service`
   if [ -z $name ]; then
     echo Couldn\'t find container for service $service.
     let failed+=1
+  else
+    containers+=("$name")
   fi
-  containers+=("$name")
-
 done
 
-echo "${containers[@]}"
+# echo "${containers[@]}"
 
 while [ ${#containers[@]} -gt 0 ]; do
   not_ready=()
@@ -38,7 +38,7 @@ while [ ${#containers[@]} -gt 0 ]; do
       continue
     elif [ "$status" == "unhealthy" ]; then
       echo "$container is unhealthy"
-      docker compose logs $container
+      docker logs $container
       let failed+=1
       continue
     elif [ $elapsed -ge $TIMEOUT ]; then

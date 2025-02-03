@@ -12,10 +12,11 @@ function dlogs() {
 
 function dattach(){
   if [ -z "$1" ]; then
-    echo "Missing container name"
+    echo "Missing service name"
     return
   fi
-  CONTAINER=$1
+  SERVICE=$1
+  CONTAINER=`service_to_container $SERVICE`
   shift
 
   if [ -z "$1" ]; then

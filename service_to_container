@@ -1,0 +1,5 @@
+#!/bin/bash
+set -eu
+for SERVICE in $@; do
+  docker compose ps --format=json| jq -rc "select(.Service == \"$SERVICE\") | .Name"
+done
