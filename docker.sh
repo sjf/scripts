@@ -24,9 +24,17 @@ function dattach(){
   else
     CMD="$@"
   fi
-  set -x
-  docker exec -u root -it $CONTAINER $CMD
-  set +x
+
+  if [ $CMD != '/bin/sh' ]; then
+    # Fall back to sh if there is no bash
+    set -x
+    docker exec -u root -it $CONTAINER $CMD || docker exec -u root -it $CONTAINER /bin/sh
+    set +x
+  else
+    set -x
+    docker exec -u root -it $CONTAINER $CMD
+    set +x
+  fi
 }
 
 function drebuild(){
