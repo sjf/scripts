@@ -5,7 +5,9 @@ from http.server import SimpleHTTPRequestHandler, HTTPServer
 
 class CustomHandler(SimpleHTTPRequestHandler):
   def end_headers(self):
-    if 'Content-Type' not in self.headers and not self.guess_type(self.path):
+    # self.extensions_map[''] = 'text/html'
+    # print(self.headers, 'xxx',self.guess_type(self.path),type(self.guess_type(self.path)))
+    if self.guess_type(self.path) == 'application/octet-stream':
       self.send_header('Content-Type', 'text/html')
     self.send_header('Cache-Control','no-store, no-cache, must-revalidate, max-age=0')
     super().end_headers()
