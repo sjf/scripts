@@ -10,13 +10,13 @@ failed=0
 
 containers=()
 for service in $@; do
-  # Get the container name
-  name=`service_to_container $service`
-  if [ -z $name ]; then
+  # Get the container name, can be multiple if `all` is used.
+  names=`service_to_container $service`
+  if [ -z "$names" ]; then
     echo Couldn\'t find container for service $service.
     let failed+=1
   else
-    containers+=("$name")
+    containers+=($names)
   fi
 done
 
