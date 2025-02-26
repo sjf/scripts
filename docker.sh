@@ -40,7 +40,7 @@ function dattach(){
 function drebuild(){
   check_compose_dir
   ARGS=$(compose_files)
-
+  FLAGS=
   FORCE=
   if [ "$1" == "-f" ];then
     shift
@@ -64,10 +64,12 @@ function drebuild(){
     echo "Continue to rebuild '$NAMES'"
     echo " ** This deletes the current container (but not the volumes)"
     read
+  else
+    FLAGS="--force-recreate"
   fi
   set -x
   # Use --force-recreate to completely rebuild the container and not use cached layers.
-  docker compose $ARGS up --build --no-deps --remove-orphans -d "$@" || exit 1
+  docker compose $ARGS up --build --no-deps --remove-orphans -d $FLAGS "$@" || exit 1
   set +x
   # echo "Showing '$NAMES' logs with -f (Quitting will not stop the container.)"
   # dlogs "$@"
