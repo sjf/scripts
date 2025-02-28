@@ -2,7 +2,10 @@
 set -e #exit on failed command
 set -u #fail on undefined variable
 # set -x #print commands
-
-HOST=localhost
-PORT=3456
-curl $HOST:$PORT/?f=$(realpath $1)
+if is_mac; then
+ '/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl'  $1
+else
+  HOST=localhost
+  PORT=3456
+  curl $HOST:$PORT/?f=$(realpath $1)
+fi
