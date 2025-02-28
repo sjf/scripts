@@ -12,10 +12,11 @@ function dlogs() {
 
 function dattach(){
   if [ -z "$1" ]; then
-    echo "Missing container name"
+    echo "Missing service name"
     return
   fi
-  CONTAINER=$1
+  SERVICE=$1
+  CONTAINER=`service_to_container $SERVICE`
   shift
 
   if [ -z "$1" ]; then
@@ -23,15 +24,23 @@ function dattach(){
   else
     CMD="$@"
   fi
-  set -x
-  docker exec -u root -it $CONTAINER $CMD
-  set +x
+
+  if [ $CMD != '/bin/sh' ]; then
+    # Fall back to sh if there is no bash
+    set -x
+    docker exec -u root -it $CONTAINER $CMD || docker exec -u root -it $CONTAINER /bin/sh
+    set +x
+  else
+    set -x
+    docker exec -u root -it $CONTAINER $CMD
+    set +x
+  fi
 }
 
 function drebuild(){
   check_compose_dir
   ARGS=$(compose_files)
-
+  FLAGS=
   FORCE=
   if [ "$1" == "-f" ];then
     shift
@@ -55,10 +64,12 @@ function drebuild(){
     echo "Continue to rebuild '$NAMES'"
     echo " ** This deletes the current container (but not the volumes)"
     read
+  else
+    FLAGS="--force-recreate"
   fi
   set -x
   # Use --force-recreate to completely rebuild the container and not use cached layers.
-  docker compose $ARGS up --build --no-deps --remove-orphans -d "$@" || exit 1
+  docker compose $ARGS up --build --no-deps --remove-orphans -d $FLAGS "$@" || exit 1
   set +x
   # echo "Showing '$NAMES' logs with -f (Quitting will not stop the container.)"
   # dlogs "$@"

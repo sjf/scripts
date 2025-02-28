@@ -8,6 +8,20 @@ elapsed=0
 containers=("$@")
 failed=0
 
+containers=()
+for service in $@; do
+  # Get the container name, can be multiple if `all` is used.
+  names=`service_to_container $service`
+  if [ -z "$names" ]; then
+    echo Couldn\'t find container for service $service.
+    let failed+=1
+  else
+    containers+=($names)
+  fi
+done
+
+# echo "${containers[@]}"
+
 while [ ${#containers[@]} -gt 0 ]; do
   not_ready=()
   for container in "${containers[@]}"; do
@@ -24,7 +38,7 @@ while [ ${#containers[@]} -gt 0 ]; do
       continue
     elif [ "$status" == "unhealthy" ]; then
       echo "$container is unhealthy"
-      docker compose logs $container
+      docker logs $container
       let failed+=1
       continue
     elif [ $elapsed -ge $TIMEOUT ]; then

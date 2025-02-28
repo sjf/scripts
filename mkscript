@@ -11,11 +11,16 @@ set -u #fail on undefined variable
 set -x #print commands
 
 EOF
+else
+  echo "File already exists: $name" >&2 || true
 fi
 chmod a+x $name
 
-is_mac && exec sublime $name
-
-vim "+normal G$" +startinsert $name
+if [[ `is_mac` ]]; then
+  exec sublime $name
+else
+  sopen $name
+  #vim "+normal G$" +startinsert $name
+fi
 
 

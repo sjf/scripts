@@ -1,0 +1,10 @@
+#!/bin/bash
+# In docker compose environment, returns the container name for a service. Use `all` to get all the containers.
+set -eu
+if [[ "$@" == "all" ]]; then
+  docker compose ps --format '{{.Names}}'
+  exit 0
+fi
+for SERVICE in $@; do
+  docker compose ps --format=json| jq -rc "select(.Service == \"$SERVICE\") | .Name"
+done
