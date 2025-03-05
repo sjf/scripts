@@ -1,0 +1,17 @@
+#!/bin/bash
+set -u
+
+# sshtunnel.sh &
+# sublime_server.py &
+
+umount ~/scripts 2>/dev/null
+umount ~/sjf1 2>/dev/null
+umount ~/mb 2>/dev/null
+umount ~/sbb 2>/dev/null
+umount ~/sbb.local/ 2>/dev/null
+
+sshfs box:/home/sjf/scripts ~/scripts1  -o volname=scripts1,reconnect,ServerAliveInterval=1
+sshfs box:/home/sjf/sjf     ~/sjf1      -o volname=sjf1,reconnect,ServerAliveInterval=1
+sshfs box:/home/sjf/mb      ~/box2      -o volname=box2,reconnect,ServerAliveInterval=1
+sshfs box:/home/sjf/sbb     ~/sbb       -o volname=sbb,reconnect,ServerAliveInterval=1
+sshfs beekey.buzz:/home/sjf/sbb ~/sbb.local/ -o volname=beekey,reconnect,ServerAliveInterval=1
