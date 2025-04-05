@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # ^^ this needs bash 4+, mac is only on 3.
-# Use the first bash from the path.
+# Use the first bash from the path and * not /bin/bash *
+#set -x
+
+COMPOSE_FILE=${COMPOSE_FILE:-compose.yaml}
 
 function dlogs() {
   # if [ -z "$@" ]; then
@@ -152,12 +155,12 @@ function dcu() {
 
 function check_compose_dir(){
   while [[ "$PWD" == $HOME/* ]]; do
-    if [[ -f "compose.yaml" ]]; then
+    if [[ -f $COMPOSE_FILE ]]; then
       return
     fi
     cd ..
   done
-  if [[ ! -f "compose.yaml" ]]; then
+  if [[ ! -f $COMPOSE_FILE ]]; then
     echo "Not in docker compose directory"
     exit 1
   fi
@@ -168,7 +171,7 @@ function compose_files(){
     echo $PWD/compose.yaml $PWD/compose.${DOCKER_ENV}.yaml >&2
     echo "-f compose.yaml -f compose.${DOCKER_ENV}.yaml"
   else
-    echo $PWD/compose.yaml >&2
+    echo $PWD/$COMPOSE_FILE >&2
   fi
 }
 
