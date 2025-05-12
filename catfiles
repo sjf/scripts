@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+# set -x #print commands
+
+
+for f in "$@"; do
+  echo '==>' $f '<=='
+  cat $f
+done

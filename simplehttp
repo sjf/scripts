@@ -1,7 +1,33 @@
-#!/bin/bash
-set -x #print commands
-set -u #fail for unset vars
-set -e #exit on errors
-# python -m SimpleHTTPServer 8080
-PORT=${1:-8081}
-python3 -m http.server $PORT
+#!/usr/bin/env python
+
+import os, sys
+import http.server
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import socketserver
+
+if len(sys.argv) > 1:
+  port = int(sys.argv[1])
+else:
+  port = int(os.environ.get('PORT', '8081'))
+
+Handler = http.server.SimpleHTTPRequestHandler
+
+Handler.extensions_map={
+  '.manifest': 'text/cache-manifest',
+  '.html': 'text/html',
+  '.png': 'image/png',
+  '.jpg': 'image/jpg',
+  '.svg': 'image/svg+xml',
+  '.css': 'text/css',
+  '.js':  'application/x-javascript',
+  '.tsx': 'application/x-typescript',
+  '': 'application/octet-stream', # Default
+    }
+
+httpd = socketserver.TCPServer(("", port), Handler)
+
+print("serving at port", port)
+httpd.serve_forever()
+
+# command line version:
+# python3 -m http.server $PORT
