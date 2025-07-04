@@ -1,0 +1,23 @@
+#!/bin/bash
+set -eu
+
+current_branch=$(git branch --show-current)
+branch_to_delete="${1:-$current_branch}"
+
+if [ "$branch_to_delete" = "main" ]; then
+  echo Not deleting main branch
+  exit 1
+fi
+
+if [ "$current_branch" = "$branch_to_delete" ]; then
+  # Cant delete the current branch
+  git checkout main
+fi
+
+echo "Deleting local branch '$branch_to_delete'..."
+git branch -D "$branch_to_delete"
+
+if git ls-remote --exit-code --heads origin "$branch_to_delete" >/dev/null 2>&1; then
+  echo "Deleting remote branch '$branch_to_delete'..."
+  git push origin --delete "$branch_to_delete" || true
+fi

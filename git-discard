@@ -4,20 +4,20 @@ set -eu
 
 FILES="${@:-.}"
 
-diff_files=$(git diff --name-only $FILES)
-if [ -n "$diff_files" ]; then
+modified_files=$(git diff --name-only $FILES)
+if [ -n "$modified_files" ]; then
   echo Modified files:
-  echo $diff_files
+  echo "$modified_files"
   echo
 fi
 new_files=$(git ls-files --others --exclude-standard $FILES)
 if [ -n "$new_files" ]; then
   echo New files:
-  echo $new_files
+  echo "$new_files"
   git-check-new-files-stashed.sh $FILES || true
 fi
 
-if [[ -z "$diff_files" && -z "$new_files" ]];then
+if [[ -z "$modified_files" && -z "$new_files" ]];then
   echo No changes
   exit 0
 fi
@@ -25,10 +25,14 @@ fi
 read -p "Continue? (y/N): " -r
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-  echo git restore $FILES
-  git restore $FILES
-  echo git clean -fd $FILES
-  git clean -fd $FILES
+  if [ -n "$modified_files" ]; then
+    echo git restore $FILES
+    git restore $FILES
+  fi
+  if [ -n "$new_files" ]; then
+    echo git clean -fd $FILES
+    git clean -fd $FILES
+  fi
 else
   echo "Cancelled"
 fi

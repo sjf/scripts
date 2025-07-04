@@ -23,6 +23,6 @@ for file in $new_files; do
 done
 if [ ${#unstashed_files[@]} -gt 0 ]; then
     warn "WARNING: These untracked files are not stashed:"
-    warn $(printf '%s\n' "${unstashed_files[@]}")
+    warn "$(printf '%s\n' "${unstashed_files[@]}")"
     exit 1
 fi
