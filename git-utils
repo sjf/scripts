@@ -1,0 +1,34 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+#set -x #print commands
+
+CURRENT_BRANCH=$(git branch --show-current)
+
+function branch_exists() {
+  name=$1
+  git show-ref --verify --quiet refs/heads/"$name"
+}
+
+function remote_branch_exists() {
+  echo Checking remote branches...
+  git ls-remote --exit-code --heads origin "$branch_to_delete" >/dev/null 2>&1
+}
+
+function co() {
+  name=$1
+  # Check if branch exists locally
+  if git show-ref --verify --quiet refs/heads/"$name"; then
+      git checkout "$name"
+      return
+  fi
+  # Check if branch exists on remote
+  if git ls-remote --heads origin "$name" | grep -q "$name"; then
+      git checkout -b "$name" origin/"$name"
+      return
+  fi
+  # Create a new branch
+  git checkout -b "$name"
+}
+
+

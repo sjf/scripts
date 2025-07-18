@@ -1,0 +1,22 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+# set -x #print commands
+
+. ~/scripts/git-utils
+
+function createPrUrl() {
+  repo_url=$(git remote get-url origin | sed 's/\.git$//' | sed 's/git@github.com:/https:\/\/github.com\//')
+  echo "$repo_url/compare/$CURRENT_BRANCH"
+}
+
+git stash -m getfetch-tmp
+git fetch upstream
+git rebase upstream/main
+npm run install:all
+git stash pop
+git push --force-with-lease
+if [[ $CURRENT_BRANCH == "main" ]]; then
+  exit
+fi
+gh pr view --json url --jq '.url' 2>/dev/null || createPrUrl

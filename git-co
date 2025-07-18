@@ -1,0 +1,54 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+#set -x #print commands
+
+. ~/scripts/git-utils
+
+function get_name() {
+  name=$1
+  # Get current date components
+  DAY=$(date +%d)
+  MONTH=$(date +%B)
+  case "$MONTH" in
+      "January") CHAR="ja" ;;
+      "February") CHAR="f" ;;
+      "March") CHAR="mar" ;;
+      "April") CHAR="ap" ;;
+      "May") CHAR="may" ;;
+      "June") CHAR="jun" ;;
+      "July") CHAR="jul" ;;
+      "August") CHAR="au" ;;
+      "September") CHAR="s" ;;
+      "October") CHAR="o" ;;
+      "November") CHAR="n" ;;
+      "December") CHAR="d" ;;
+  esac
+  # Remove leading zero from day
+  DAY_NUM=$((10#$DAY))
+  # Create the full branch name
+  FULL_BRANCH_NAME="sjf-${CHAR}${DAY_NUM}-${NAME}"
+  echo $FULL_BRANCH_NAME
+}
+
+NAME="${1:-main}"
+
+# If changing to main branch
+if [ "$NAME" = "main" ]; then
+  git checkout main
+
+elif branch_exists $NAME; then
+  co $NAME
+
+elif branch_exists sjf-${NAME}; then
+  co sjf-${NAME}
+
+elif [[ "$NAME" == sjf-* ]]; then
+  co $NAME
+
+else
+  FULL_NAME=$(get_name $NAME)
+  co $FULL_NAME
+
+fi
+

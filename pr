@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e #exit on failed command
 set -u #fail on undefined variable
-set -x #print commands
+#set -x #print commands
 
-
-git add .; git commit -m .;git push
+gh pr view --web
