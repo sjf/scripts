@@ -3,31 +3,44 @@ set -eu
 
 . ~/scripts/git-utils
 
-branch_to_delete="${1:-$CURRENT_BRANCH}"
+function delete_branch() {
+  branch_to_delete="$1"
 
-if [ "$branch_to_delete" = "main" ]; then
-  echo Not deleting main branch
-  exit 1
+  if [ "$branch_to_delete" = "main" ]; then
+    echo Not deleting main branch
+    exit 1
+  fi
+
+  if [ "$CURRENT_BRANCH" = "$branch_to_delete" ]; then
+    # Cant delete the current branch
+    git checkout main
+  fi
+
+  DID_SOMETHING=
+  if branch_exists $branch_to_delete; then
+    echo "Deleting local branch '$branch_to_delete'..."
+    git branch -D "$branch_to_delete"
+    DID_SOMETHING=1
+  fi
+
+  if remote_branch_exists; then
+    echo "Deleting remote branch '$branch_to_delete'..."
+    git push origin --delete "$branch_to_delete" || true
+    DID_SOMETHING=1
+  fi
+
+  if [[ -z $DID_SOMETHING ]]; then
+    echo Nothing to delete: $branch_to_delete
+  fi
+}
+
+if [ $# -eq 0 ]; then
+    # No arguments, use current_branch
+    set -- "$CURRENT_BRANCH"
 fi
 
-if [ "$CURRENT_BRANCH" = "$branch_to_delete" ]; then
-  # Cant delete the current branch
-  git checkout main
-fi
+# Iterate over arguments (either provided or the current_branch)
+for branch in "$@"; do
+  delete_branch $branch
+done
 
-DID_SOMETHING=
-if branch_exists $branch_to_delete; then
-  echo "Deleting local branch '$branch_to_delete'..."
-  git branch -D "$branch_to_delete"
-  DID_SOMETHING=1
-fi
-
-if remote_branch_exists; then
-  echo "Deleting remote branch '$branch_to_delete'..."
-  git push origin --delete "$branch_to_delete" || true
-  DID_SOMETHING=1
-fi
-
-if [[ -z $DID_SOMETHING ]]; then
-  echo Nothing to delete
-fi

@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+# set -x #print commands
+
+. ~/scripts/git-utils
+
+BRANCH=${1:-main}
+
+stash_before subtree-pull-$BRANCH
+
+EDITOR=true
+set -x
+# git subtree pull -m 'Merge' --prefix=cline --squash ~/cline $BRANCH
+git subtree pull --prefix=cline --squash https://github.com/cline/cline.git $BRANCH
+set +
+
+pop_after

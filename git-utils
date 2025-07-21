@@ -5,6 +5,13 @@ set -u #fail on undefined variable
 
 CURRENT_BRANCH=$(git branch --show-current)
 
+HAS_LOCAL_CHANGES=
+if git diff-index --quiet HEAD --; then
+  : # There are no local changes to indexed files.
+else
+  HAS_LOCAL_CHANGES=1
+fi
+
 function branch_exists() {
   name=$1
   git show-ref --verify --quiet refs/heads/"$name"
@@ -32,3 +39,21 @@ function co() {
 }
 
 
+function stash_before() {
+  NAME=${1:-}
+  if [[ -n $HAS_LOCAL_CHANGES ]]; then
+    git stash -q -m "$NAME"
+  fi
+}
+
+function pop_after() {
+  if [[ -n $HAS_LOCAL_CHANGES ]]; then
+    git stash pop -q
+  fi
+}
+
+
+function createPrUrl() {
+  repo_url=$(git remote get-url origin | sed 's/\.git$//' | sed 's/git@github.com:/https:\/\/github.com\//')
+  echo "$repo_url/compare/$CURRENT_BRANCH"
+}

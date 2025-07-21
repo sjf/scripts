@@ -10,13 +10,16 @@ function createPrUrl() {
   echo "$repo_url/compare/$CURRENT_BRANCH"
 }
 
-git stash -m getfetch-tmp
-git fetch upstream
-git rebase upstream/main
+stash_before getfetch-tmp
+
+git fetch origin
+git rebase origin/main
 npm run install:all
-git stash pop
+
+pop_after
+
 git push --force-with-lease
-if [[ $CURRENT_BRANCH == "main" ]]; then
-  exit
+
+if [[ $CURRENT_BRANCH != "main" ]]; then
+  gh pr view --json url --jq '.url' 2>/dev/null || createPrUrl
 fi
-gh pr view --json url --jq '.url' 2>/dev/null || createPrUrl

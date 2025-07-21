@@ -11,14 +11,14 @@ function get_name() {
   DAY=$(date +%d)
   MONTH=$(date +%B)
   case "$MONTH" in
-      "January") CHAR="ja" ;;
+      "January") CHAR="jn" ;;
       "February") CHAR="f" ;;
-      "March") CHAR="mar" ;;
+      "March") CHAR="m" ;;
       "April") CHAR="ap" ;;
-      "May") CHAR="may" ;;
-      "June") CHAR="jun" ;;
-      "July") CHAR="jul" ;;
-      "August") CHAR="au" ;;
+      "May") CHAR="my" ;;
+      "June") CHAR="j" ;;
+      "July") CHAR="jl" ;;
+      "August") CHAR="a" ;;
       "September") CHAR="s" ;;
       "October") CHAR="o" ;;
       "November") CHAR="n" ;;
@@ -33,7 +33,6 @@ function get_name() {
 
 NAME="${1:-main}"
 
-# If changing to main branch
 if [ "$NAME" = "main" ]; then
   git checkout main
 
