@@ -39,8 +39,8 @@ if [ "$NAME" = "main" ]; then
 elif branch_exists $NAME; then
   co $NAME
 
-elif branch_exists sjf-${NAME}; then
-  co sjf-${NAME}
+elif ENDING_BRANCH=$(git branch --format='%(refname:short)' | grep -- "-${NAME}$" | head -1) && [ -n "$ENDING_BRANCH" ]; then
+  co $ENDING_BRANCH
 
 elif [[ "$NAME" == sjf-* ]]; then
   co $NAME

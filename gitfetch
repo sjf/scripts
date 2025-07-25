@@ -5,11 +5,6 @@ set -u #fail on undefined variable
 
 . ~/scripts/git-utils
 
-function createPrUrl() {
-  repo_url=$(git remote get-url origin | sed 's/\.git$//' | sed 's/git@github.com:/https:\/\/github.com\//')
-  echo "$repo_url/compare/$CURRENT_BRANCH"
-}
-
 stash_before getfetch-tmp
 
 git fetch origin

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e #exit on failed command
 set -u #fail on undefined variable
-#set -x #print commands
+set -x #print commands
 
 REMOTE_SHA_BEFORE=$(git ls-remote origin $(git branch --show-current) | cut -f1)
 git push
@@ -14,4 +14,8 @@ fi
 
 gh pr create --title "$(git log -1 --pretty=format:'%s')" --body "$(git log -1 --pretty=format:'%b')"
 
-gh pr merge --squash --delete-branch
+gh pr merge --squash --delete-branch --auto
+
+git checkout main
+
+git branch -d $CURRENT_BRANCH
