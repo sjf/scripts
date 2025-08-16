@@ -3,13 +3,15 @@ set -e #exit on failed command
 set -u #fail on undefined variable
 set -x #print commands
 
+. ~/scripts/git-utils
+
 REMOTE_SHA_BEFORE=$(git ls-remote origin $(git branch --show-current) | cut -f1)
 git push
 REMOTE_SHA_AFTER=$(git ls-remote origin $(git branch --show-current) | cut -f1)
 
 if [[ "$REMOTE_SHA_BEFORE" == "$REMOTE_SHA_AFTER" ]]; then
-    #echo "Nothing was pushed"
-    exit 1
+    echo "Nothing was pushed"
+    # exit 1
 fi
 
 gh pr create --title "$(git log -1 --pretty=format:'%s')" --body "$(git log -1 --pretty=format:'%b')"
@@ -18,4 +20,5 @@ gh pr merge --squash --delete-branch --auto
 
 git checkout main
 
+# delete the original branch
 git branch -d $CURRENT_BRANCH

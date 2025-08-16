@@ -9,7 +9,10 @@ stash_before getfetch-tmp
 
 git fetch origin
 git rebase origin/main
-npm run install:all
+
+if [[ -f package.json ]]; then
+  npm run install:all
+fi
 
 pop_after
 
