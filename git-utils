@@ -42,7 +42,7 @@ function co() {
 function stash_before() {
   NAME=${1:-}
   if [[ -n $HAS_LOCAL_CHANGES ]]; then
-    git stash -q -m "$NAME"
+    git stash -q -m "$NAME" --include-untracked
   fi
 }
 

@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Check what operation is in progress and abort it
+git status
+
+if [ -d ".git/rebase-merge" ] || [ -d ".git/rebase-apply" ]; then
+  rich "[yellow]Aborting rebase...[/yellow]" --print
+  git rebase --abort
+
+elif [ -f ".git/MERGE_HEAD" ]; then
+  rich "[yellow]Aborting merge...[/yellow]" --print
+  git merge --abort
+
+elif [ -f ".git/CHERRY_PICK_HEAD" ]; then
+  rich "[yellow]Aborting cherry-pick...[/yellow]" --print
+  git cherry-pick --abort
+
+elif [ -f ".git/REVERT_HEAD" ]; then
+  rich "[yellow]Aborting revert...[/yellow]" --print
+  git revert --abort
+
+elif [ -d ".git/sequencer" ]; then
+  rich "[yellow]Aborting interactive rebase/sequence...[/yellow]" --print
+  git rebase --abort 2>/dev/null || git cherry-pick --abort 2>/dev/null || echo "Could not abort sequence"
+
+else
+  rich "[yellow]No git operation in progress to abort[/yellow]" --print
+fi
