@@ -16,9 +16,11 @@ fi
 
 gh pr create --title "$(git log -1 --pretty=format:'%s')" --body "$(git log -1 --pretty=format:'%b')"
 
+prr
+
 gh pr merge --squash --delete-branch --auto
 
-git checkout main
+# git checkout main
 
-# delete the original branch
-git branch -d $CURRENT_BRANCH
+# # delete the original branch
+# git branch -d $CURRENT_BRANCH

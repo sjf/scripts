@@ -5,49 +5,24 @@ set -u #fail on undefined variable
 
 . ~/scripts/git-utils
 
-function get_name() {
-  name=$1
-  # Get current date components
-  DAY=$(date +%d)
-  MONTH=$(date +%B)
-  case "$MONTH" in
-      "January") CHAR="jn" ;;
-      "February") CHAR="f" ;;
-      "March") CHAR="m" ;;
-      "April") CHAR="ap" ;;
-      "May") CHAR="my" ;;
-      "June") CHAR="j" ;;
-      "July") CHAR="jl" ;;
-      "August") CHAR="a" ;;
-      "September") CHAR="s" ;;
-      "October") CHAR="o" ;;
-      "November") CHAR="n" ;;
-      "December") CHAR="d" ;;
-  esac
-  # Remove leading zero from day
-  DAY_NUM=$((10#$DAY))
-  # Create the full branch name
-  FULL_BRANCH_NAME="sjf-${CHAR}${DAY_NUM}-${NAME}"
-  echo $FULL_BRANCH_NAME
-}
+NAME="${1:-$MAIN}"
 
-NAME="${1:-main}"
+if [ "$NAME" = "$MAIN" ]; then
+  git checkout $MAIN
 
-if [ "$NAME" = "main" ]; then
-  git checkout main
-
-elif branch_exists $NAME; then
-  co $NAME
+elif branch_exists $NAME || remote_branch_exists $NAME; then
+  git checkout $NAME
 
 elif ENDING_BRANCH=$(git branch --format='%(refname:short)' | grep -- "-${NAME}$" | head -1) && [ -n "$ENDING_BRANCH" ]; then
-  co $ENDING_BRANCH
+  git checkout $ENDING_BRANCH
 
-elif [[ "$NAME" == sjf-* ]]; then
-  co $NAME
+# elif [[ "$NAME" == sjf-* ]]; then
+#   co $NAME
 
+# else
+#   FULL_NAME=$(get_name $NAME)
+#   co $FULL_NAME
 else
-  FULL_NAME=$(get_name $NAME)
-  co $FULL_NAME
-
+  echo Couldn\'t find branch $NAME local or remote in $REPO
 fi
 

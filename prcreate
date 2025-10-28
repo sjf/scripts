@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+
+. ~/scripts/git-utils
+
+git push
+
+gh pr create --title "$(git log -1 --pretty=format:'%s')" --body "$(git log -1 --pretty=format:'%b')" --head "$(git branch --show-current)" --base "$MAIN"
+
+prr

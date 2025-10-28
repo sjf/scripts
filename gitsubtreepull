@@ -5,7 +5,7 @@ set -u #fail on undefined variable
 
 . ~/scripts/git-utils
 
-BRANCH=${1:-main}
+BRANCH=${1:-$MAIN}
 
 stash_before subtree-pull-$BRANCH
 

@@ -12,6 +12,10 @@ if [ "$CURRENT_BRANCH" = "main" ]; then
   echo "Error: Cannot commit directly to main branch"
   exit 1
 fi
+if [ "$CURRENT_BRANCH" = "develop" ]; then
+  echo "Error: Cannot commit directly to develop branch"
+  exit 1
+fi
 
 git commit "$@"
 

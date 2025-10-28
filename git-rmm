@@ -10,10 +10,14 @@ function delete_branch() {
     echo Not deleting main branch
     exit 1
   fi
+  if [ "$branch_to_delete" = "develop" ]; then
+    echo Not deleting develop branch
+    exit 1
+  fi
 
   if [ "$CURRENT_BRANCH" = "$branch_to_delete" ]; then
     # Cant delete the current branch
-    git checkout main
+    git checkout $MAIN
   fi
 
   DID_SOMETHING=
@@ -23,11 +27,11 @@ function delete_branch() {
     DID_SOMETHING=1
   fi
 
-  if remote_branch_exists; then
-    echo "Deleting remote branch '$branch_to_delete'..."
-    git push origin --delete "$branch_to_delete" || true
-    DID_SOMETHING=1
-  fi
+  # if remote_branch_exists $branch_to_delete; then
+  #   echo "Deleting remote branch '$branch_to_delete'..."
+  #   git push origin --delete "$branch_to_delete" || true
+  #   DID_SOMETHING=1
+  # fi
 
   if [[ -z $DID_SOMETHING ]]; then
     echo Nothing to delete: $branch_to_delete

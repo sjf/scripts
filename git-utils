@@ -1,16 +1,28 @@
 #!/bin/bash
-set -e #exit on failed command
+#set -e #exit on failed command
 set -u #fail on undefined variable
 #set -x #print commands
 
 CURRENT_BRANCH=$(git branch --show-current)
 
-HAS_LOCAL_CHANGES=
-if git diff-index --quiet HEAD --; then
-  : # There are no local changes to indexed files.
+REPO=$(git remote get-url origin | sed 's/.*\///' | sed 's/\.git$//')
+if [[ $REPO == "core-platform" ]]; then
+  MAIN=develop
 else
-  HAS_LOCAL_CHANGES=1
+  MAIN=main
 fi
+
+#MAIN=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
+
+function has_local_changes() {
+  if ! git diff-index --quiet HEAD -- ; then
+    return 0  # Has changes to tracked files
+  fi
+  if [[ -n $(git ls-files --others --exclude-standard) ]]; then
+    return 0  # Has untracked files
+  fi
+  return 1  # No changes
+}
 
 function branch_exists() {
   name=$1
@@ -18,8 +30,9 @@ function branch_exists() {
 }
 
 function remote_branch_exists() {
+  name=$1
   echo Checking remote branches...
-  git ls-remote --exit-code --heads origin "$branch_to_delete" >/dev/null 2>&1
+  git ls-remote --exit-code --heads origin "$name" >/dev/null 2>&1
 }
 
 function co() {
@@ -39,21 +52,50 @@ function co() {
 }
 
 
+NEED_POP=
+
 function stash_before() {
   NAME=${1:-}
-  if [[ -n $HAS_LOCAL_CHANGES ]]; then
+  if has_local_changes; then
     git stash -q -m "$NAME" --include-untracked
+    NEED_POP=1
   fi
 }
 
 function pop_after() {
-  if [[ -n $HAS_LOCAL_CHANGES ]]; then
+  if [[ -n $NEED_POP ]]; then
     git stash pop -q
+    NEED_POP=
   fi
 }
-
 
 function createPrUrl() {
   repo_url=$(git remote get-url origin | sed 's/\.git$//' | sed 's/git@github.com:/https:\/\/github.com\//')
   echo "$repo_url/compare/$CURRENT_BRANCH"
+}
+
+function get_name() {
+  NAME=$1
+  # Get current date components
+  DAY=$(date +%d)
+  MONTH=$(date +%B)
+  case "$MONTH" in
+      "January") CHAR="jn" ;;
+      "February") CHAR="f" ;;
+      "March") CHAR="m" ;;
+      "April") CHAR="ap" ;;
+      "May") CHAR="my" ;;
+      "June") CHAR="j" ;;
+      "July") CHAR="jl" ;;
+      "August") CHAR="a" ;;
+      "September") CHAR="s" ;;
+      "October") CHAR="o" ;;
+      "November") CHAR="n" ;;
+      "December") CHAR="d" ;;
+  esac
+  # Remove leading zero from day
+  DAY_NUM=$((10#$DAY))
+  # Create the full branch name
+  FULL_BRANCH_NAME="sjf-${CHAR}${DAY_NUM}-${NAME}"
+  echo $FULL_BRANCH_NAME
 }
