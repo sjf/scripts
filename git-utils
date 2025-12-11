@@ -5,12 +5,13 @@ set -u #fail on undefined variable
 
 CURRENT_BRANCH=$(git branch --show-current)
 
-REPO=$(git remote get-url origin | sed 's/.*\///' | sed 's/\.git$//')
-if [[ $REPO == "core-platform" ]]; then
-  MAIN=develop
-else
-  MAIN=main
-fi
+# REPO=$(git remote get-url origin | sed 's/.*\///' | sed 's/\.git$//')
+# if [[ $REPO == "core-platform" ]]; then
+#   MAIN=develop
+# else
+#   MAIN=main
+# fi
+MAIN=main
 
 #MAIN=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
 
@@ -57,15 +58,21 @@ NEED_POP=
 function stash_before() {
   NAME=${1:-}
   if has_local_changes; then
+    echo '----------- STASHING ----------'
     git stash -q -m "$NAME" --include-untracked
     NEED_POP=1
+  else
+    echo '----------- not stashing ----------'
   fi
 }
 
 function pop_after() {
   if [[ -n $NEED_POP ]]; then
+    echo '----------- POPPING ----------'
     git stash pop -q
     NEED_POP=
+  else
+    echo '----------- not popping ----------'
   fi
 }
 
