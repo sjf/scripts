@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+set -x #print commands
+
+git config core.sshCommand "ssh -i /Users/sjf/.ssh/id_ed25519 -o IdentitiesOnly=yes -o CertificateFile=/dev/null"
+git config user.email "sarah.fortune@gmail.com"
+git config user.name "Sarah Fortune"

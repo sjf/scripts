@@ -14,7 +14,7 @@ new_files=$(git ls-files --others --exclude-standard $FILES)
 if [ -n "$new_files" ]; then
   echo New files:
   echo "$new_files"
-  git-check-new-files-stashed.sh $FILES || true
+  #git-check-new-files-stashed.sh $FILES || true
 fi
 
 if [[ -z "$modified_files" && -z "$new_files" ]];then

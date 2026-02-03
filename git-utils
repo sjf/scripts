@@ -5,13 +5,13 @@ set -u #fail on undefined variable
 
 CURRENT_BRANCH=$(git branch --show-current)
 
-# REPO=$(git remote get-url origin | sed 's/.*\///' | sed 's/\.git$//')
-# if [[ $REPO == "core-platform" ]]; then
-#   MAIN=develop
-# else
-#   MAIN=main
-# fi
-MAIN=main
+REPO=$(git remote get-url origin | sed 's/.*\///' | sed 's/\.git$//')
+if [[ $REPO == "sjf" ]]; then
+  MAIN=master
+else
+  MAIN=main
+fi
+# MAIN=main
 
 #MAIN=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
 
