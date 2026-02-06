@@ -6,11 +6,16 @@ set -u #fail on undefined variable
 CURRENT_BRANCH=$(git branch --show-current)
 
 REPO=$(git remote get-url origin | sed 's/.*\///' | sed 's/\.git$//')
-if [[ $REPO == "sjf" ]]; then
-  MAIN=master
-else
-  MAIN=main
-fi
+
+case "$REPO" in
+  sjf|openai)
+    MAIN=master
+    ;;
+  *)
+    MAIN=main
+    ;;
+esac
+
 # MAIN=main
 
 #MAIN=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')

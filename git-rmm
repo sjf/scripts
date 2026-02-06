@@ -3,6 +3,8 @@ set -eu
 
 . ~/scripts/git-utils
 
+DELETE_REMOTE=
+
 function delete_branch() {
   branch_to_delete="$1"
 
@@ -27,16 +29,30 @@ function delete_branch() {
     DID_SOMETHING=1
   fi
 
-  # if remote_branch_exists $branch_to_delete; then
-  #   echo "Deleting remote branch '$branch_to_delete'..."
-  #   git push origin --delete "$branch_to_delete" || true
-  #   DID_SOMETHING=1
-  # fi
+  if [[ -n "${DELETE_REMOTE:-}" ]] && remote_branch_exists $branch_to_delete; then
+    echo "Deleting remote branch '$branch_to_delete'..."
+    git push origin --delete "$branch_to_delete" || true
+    DID_SOMETHING=1
+  fi
 
   if [[ -z $DID_SOMETHING ]]; then
     echo Nothing to delete: $branch_to_delete
   fi
 }
+
+while getopts ":a" opt; do
+  case "$opt" in
+    a)
+      DELETE_REMOTE=1
+      ;;
+    \?)
+      echo "Usage: $(basename "$0") [-a] [branch ...]"
+      echo "  -a    delete both local and remote branches"
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND - 1))
 
 if [ $# -eq 0 ]; then
     # No arguments, use current_branch
@@ -47,4 +63,3 @@ fi
 for branch in "$@"; do
   delete_branch $branch
 done
-

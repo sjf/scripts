@@ -11,6 +11,6 @@ NAME=$(get_name $BRANCH)
 
 set -x
 git checkout $MAIN
-git fetch
-git pull
+git fetch origin "$MAIN"
+git merge --ff-only "origin/$MAIN"
 git checkout -b $NAME

@@ -1,25 +1,39 @@
 #!/usr/bin/env bash
-
 set -eu
 
-FILES="${@:-.}"
+clean_flag=
+while getopts ":a" opt; do
+  case "$opt" in
+    a) clean_flag=x ;;
+    \?) echo "Usage: $(basename "$0") [-a] [path...]" >&2; exit 1 ;;
+  esac
+done
+shift $((OPTIND - 1))
 
+FILES="${@:-codex api/gaas}"
+
+# untracked (and optionally ignored) files
+to_remove=$(git clean -nd${clean_flag} $FILES | sed 's/Would remove //')
+
+# modified tracked files
+# Use --name-only for a fast check of tracked changes.
 modified_files=$(git diff --name-only $FILES)
+
+if [[ -z "$to_remove" && -z "$modified_files" ]]; then
+  echo No changes
+  exit 0
+fi
+
 if [ -n "$modified_files" ]; then
   echo Modified files:
   echo "$modified_files"
-  echo
-fi
-new_files=$(git ls-files --others --exclude-standard $FILES)
-if [ -n "$new_files" ]; then
-  echo New files:
-  echo "$new_files"
-  #git-check-new-files-stashed.sh $FILES || true
 fi
 
-if [[ -z "$modified_files" && -z "$new_files" ]];then
-  echo No changes
-  exit 0
+if [ -n "$to_remove" ]; then
+  mesg="New files:"
+  [ -n "$clean_flag" ] && mesg="New and ignored files:"
+  echo "${mesg}"
+  echo "$to_remove"
 fi
 
 read -p "Continue? (y/N): " -r
@@ -29,9 +43,9 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo git restore $FILES
     git restore $FILES
   fi
-  if [ -n "$new_files" ]; then
-    echo git clean -fd $FILES
-    git clean -fd $FILES
+  if [ -n "$to_remove" ]; then
+    echo git clean -fd${clean_flag} $FILES
+    git clean -fd${clean_flag} $FILES
   fi
 else
   echo "Cancelled"
