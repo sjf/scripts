@@ -1,9 +1,16 @@
 #!/bin/bash
 set -e #exit on failed command
 set -u #fail on undefined variable
-set -x #print commands
+#set -x #print commands
 
-git status
-echo Continue?
-read
-git commit --amend --no-edit && git push --force-with-lease
+git log -1
+git status -uno
+
+if [[ "${1-}" == "-n" ]]; then
+  # Dry run
+  exit
+fi
+
+git add -u .
+git commit --amend --no-edit
+git push --force-with-lease

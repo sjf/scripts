@@ -4,8 +4,45 @@ set -u #fail on undefined variable
 
 . ~/scripts/git-utils
 
+BASE="$MAIN"
+POSITIONAL=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -b|--base)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: $1 requires a value" >&2
+        exit 1
+      fi
+      BASE="$2"
+      shift 2
+      ;;
+    --base=*)
+      BASE="${1#*=}"
+      shift
+      ;;
+    --)
+      shift
+      POSITIONAL+=("$@")
+      break
+      ;;
+    -*)
+      echo "Error: unknown option: $1" >&2
+      exit 1
+      ;;
+    *)
+      POSITIONAL+=("$1")
+      shift
+      ;;
+  esac
+done
+
+TITLE=${POSITIONAL[0]:-$(git log -1 --pretty=format:'%s')}
+BODY=${POSITIONAL[1]:-$(git log -1 --pretty=format:'%b')}
+
 git push
 
-gh pr create --title "$(git log -1 --pretty=format:'%s')" --body "$(git log -1 --pretty=format:'%b')" --head "$(git branch --show-current)" --base "$MAIN"
+gh pr create --title "$TITLE" --body "$BODY" --head "$(git branch --show-current)" --base "$BASE"
+[[ "$BASE" == "$MAIN" ]] && gh pr merge --auto --squash
 
 prr

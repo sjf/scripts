@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# List the last 5 GitHub pull requests authored by a user.
+#
+# Prints one PR per line:
+#   <number>  <createdAt>  <title>
+#   <url>
+#
+# Requirements:
+#   - GitHub CLI: https://cli.github.com/ (authenticated via `gh auth login`)
+#   - jq
+#
+# Usage:
+#   ghprs [github_username]
+#   ghprs -c [github_username]          # closed PRs only
+#
+
+usage() {
+  cat <<'USAGE'
+Usage: ghprs [-a|-c] [github_username]
+
+Options:
+  -a   All PRs (open + closed)
+  -c   Closed PRs only
+  -h   Help
+
+If github_username is omitted, defaults to: sjf
+
+Optional mapping file:
+  $HOME/.github-id-mapping
+  Format: sourced by bash, expected to define USERNAME_MAP associative array
+USAGE
+}
+
+closed_only=0
+all_states=0
+while getopts ":ach" opt; do
+  case "$opt" in
+    a) all_states=1 ;;
+    c) closed_only=1 ;;
+    h) usage; exit 0 ;;
+    *) usage; exit 2 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+if [[ $# -gt 1 ]]; then
+  usage
+  exit 2
+fi
+
+author_input="${1:-sjf}"
+author="$author_input"
+
+mapping_file="$HOME/.github-id-mapping"
+if [[ -f "$mapping_file" ]]; then
+  # shellcheck disable=SC1090
+  source "$mapping_file"
+  if declare -p USERNAME_MAP >/dev/null 2>&1; then
+    author="${USERNAME_MAP[$author_input]:-$author_input}"
+  fi
+fi
+
+state_filter="open"
+if [[ "$closed_only" -eq 1 ]]; then
+  state_filter="closed"
+elif [[ "$all_states" -eq 1 ]]; then
+  state_filter=""
+fi
+
+header_prefix="Open PRs"
+if [[ "$closed_only" -eq 1 ]]; then
+  header_prefix="Closed PRs"
+elif [[ "$all_states" -eq 1 ]]; then
+  header_prefix="All PRs"
+fi
+
+printf "%s for %s...\n" "$header_prefix" "$author"
+
+# Use GitHub search to find PRs across all repos.
+# We rely on search qualifiers:
+#   - is:pr
+#   - author:<user>
+#   - sort:created-desc
+#   - state:open|closed
+# Colors (ANSI)
+PINK="\033[95m"
+GRAY="\033[90m"
+CYAN="\033[36m"
+GREEN="\033[32m"
+YELLOW="\033[33m"
+RED="\033[31m"
+RESET="\033[0m"
+TITLE_WIDTH=60
+
+get_monorepo_check_info() {
+  local pr_url="$1"
+  local monorepo_summary="monorepo:n/a"
+  local monorepo_url=""
+  local monorepo_color="$GRAY"
+  local checks_json
+  local monorepo_match
+  local monorepo_status
+
+  checks_json="$(gh pr checks "$pr_url" --json name,workflow,state,bucket,link 2>/dev/null || true)"
+
+  if [[ -n "$checks_json" ]]; then
+    monorepo_match="$(jq -r '
+      map(select(
+        ((.name // "")  == $target_check_name_lc)
+      ))
+      | .[0] // empty
+      | [(.bucket // .state // "unknown"), (.link // "")]
+      | @tsv
+    ' --arg target_check_name_lc "buildkite/monorepo" <<< "$checks_json")"
+
+    if [[ -n "$monorepo_match" ]]; then
+      IFS=$'\t' read -r monorepo_status monorepo_url <<< "$monorepo_match"
+      monorepo_summary="monorepo:${monorepo_status}"
+      case "$monorepo_status" in
+        fail|cancel) monorepo_color="$RED" ;;
+        pending) monorepo_color="$YELLOW" ;;
+        pass) monorepo_color="$GREEN" ;;
+        *) monorepo_color="$GRAY" ;;
+      esac
+    else
+      monorepo_summary="monorepo:not-found"
+    fi
+  fi
+
+  printf "%s\t%s\t%s\n" "$monorepo_summary" "$monorepo_url" "$monorepo_color"
+}
+
+# Fetch last 5 results and print fields.
+state_args=()
+if [[ -n "$state_filter" ]]; then
+  state_args=(--state "$state_filter")
+fi
+
+gh search prs --limit 5 --json number,title,createdAt,url,state \
+  --author "$author" --sort created --order desc "${state_args[@]}" \
+  | jq -r '.[] | [.state, .number, .createdAt, .title, .url] | @tsv' \
+  | while IFS=$'\t' read -r state number created_at title url; do
+      files_url="${url}/files"
+      monorepo_summary="monorepo:n/a"
+      monorepo_url=""
+      monorepo_color="$GRAY"
+
+      if [[ "$state" == "open" ]]; then
+        IFS=$'\t' read -r monorepo_summary monorepo_url monorepo_color < <(get_monorepo_check_info "$url")
+      fi
+
+      if [[ "$state" == "open" ]]; then
+        num_color="$PINK"
+      else
+        num_color="$GRAY"
+      fi
+      display_title="$title"
+      if (( ${#display_title} > TITLE_WIDTH )); then
+        display_title="${display_title:0:$((TITLE_WIDTH-1))}…"
+      fi
+      printf "%b#%s%b\t%-*s\t%b%s%b\n%b%s%b        %b%s%b\n%b%s%b" \
+        "$num_color" "$number" "$RESET" \
+        "$TITLE_WIDTH" "$display_title" \
+        "$GRAY" "$created_at" "$RESET" \
+        "$CYAN" "$url" "$RESET" \
+        "$CYAN" "$files_url" "$RESET" \
+        "$monorepo_color" "$monorepo_summary" "$RESET"
+
+      if [[ -n "$monorepo_url" ]]; then
+        printf "  %b%s%b" "$CYAN" "$monorepo_url" "$RESET"
+      fi
+      printf "\n\n"
+    done

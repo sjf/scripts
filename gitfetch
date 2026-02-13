@@ -4,20 +4,19 @@ set -x #print commands
 
 . ~/scripts/git-utils
 
-UPDATED=no
+# UPDATED=no
 
-# just drop changes to this file because it is useless and always getting auto-updated
-[[ -f package-lock.json ]] && git restore package-lock.json
-[[ -f tools/go.work.sum ]] && git restore tools/go.work.sum
-[[ -f apps/frontend/dashboard/pnpm-lock.yaml ]] && git restore apps/frontend/dashboard/pnpm-lock.yaml
+# # just drop changes to this file because it is useless and always getting auto-updated
+# [[ -f package-lock.json ]] && git restore package-lock.json
 
-set -e #exit on failed command
+# set -e #exit on failed command
 
-stash_before gitfetch-tmp
+# stash_before gitfetch-tmp
 
 
-echo "git fetch && git fetch origin && git rebase origin/$MAIN"
-if set +u git fetch && git fetch origin && git rebase origin/$MAIN; then
+echo "fetch origin $MAIN && git rebase origin/$MAIN"
+set +u
+if git fetch origin "$MAIN" && git rebase "origin/$MAIN"; then
 
   # was HEAD updated?
   if [[ "$(git rev-parse HEAD)" != "$(git rev-parse HEAD@{1})" ]]; then
@@ -26,25 +25,26 @@ if set +u git fetch && git fetch origin && git rebase origin/$MAIN; then
 else
   rich "[bold red]Failed to fetch and rebase[/bold red]" --print
 fi
-
-# Reset -u
 set -u
 
-pop_after || (rich "[bold red]FAILED TO POP STASH![/bold red]" --print && exit 1)
+# # Reset -u
+# set -u
+
+# pop_after || (rich "[bold red]FAILED TO POP STASH![/bold red]" --print && exit 1)
 
 
-if [[ $UPDATED != yes ]]; then
-  rich "[yellow]No changes fetched" --print
-  exit 0
-fi
+# if [[ $UPDATED != yes ]]; then
+#   rich "[yellow]No changes fetched" --print
+#   exit 0
+# fi
 
-git log --oneline HEAD@{1}..HEAD
+# git log --oneline HEAD@{1}..HEAD
 
-[[ -f package.json ]] && grep install:all package.json && npm run install:all
+# [[ -f package.json ]] && grep install:all package.json && npm run install:all
 
-if [[ $CURRENT_BRANCH != "$MAIN" ]]; then
-  # Update remote branch
-  git push --force-with-lease
+# if [[ $CURRENT_BRANCH != "$MAIN" ]]; then
+#   # Update remote branch
+#   git push --force-with-lease
 
-  gh pr view --json url --jq '.url' 2>/dev/null || createPrUrl
-fi
+#   gh pr view --json url --jq '.url' 2>/dev/null || createPrUrl
+# fi

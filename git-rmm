@@ -8,12 +8,8 @@ DELETE_REMOTE=
 function delete_branch() {
   branch_to_delete="$1"
 
-  if [ "$branch_to_delete" = "main" ]; then
-    echo Not deleting main branch
-    exit 1
-  fi
-  if [ "$branch_to_delete" = "develop" ]; then
-    echo Not deleting develop branch
+  if [ "$branch_to_delete" = "$MAIN" ]; then
+    echo Not deleting $MAIN branch
     exit 1
   fi
 
