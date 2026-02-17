@@ -3,14 +3,54 @@ set -e #exit on failed command
 set -u #fail on undefined variable
 #set -x #print commands
 
-git log -1
-git status -uno
+dry_run=false
+force=false
 
-if [[ "${1-}" == "-n" ]]; then
+for arg in "$@"; do
+  case "$arg" in
+    -n)
+      dry_run=true
+      ;;
+    -f)
+      force=true
+      ;;
+    *)
+      echo "Unknown flag: $arg"
+      echo "Usage: amend [-n] [-f]"
+      exit 1
+      ;;
+  esac
+done
+
+if git diff --staged --quiet; then
+  echo "No staged changes. Exiting."
+  exit 0
+fi
+
+echo "$(tput bold)$(tput setaf 6)Adding these files to the current commit$(tput sgr0)"
+echo
+git diff --staged --name-only
+echo
+git log -1
+
+
+if [[ "$dry_run" == true ]]; then
   # Dry run
   exit
 fi
 
-git add -u .
+if [[ "$force" != true ]]; then
+  echo
+  read -r -p "Continue? [Y/n] " continue_response
+  case "$continue_response" in
+    ""|[Yy])
+      ;;
+    *)
+      echo "Cancelled."
+      exit 0
+      ;;
+  esac
+fi
+
 git commit --amend --no-edit
 git push --force-with-lease
