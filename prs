@@ -293,10 +293,29 @@ if [[ -n "$state_filter" ]]; then
   state_args=(--state "$state_filter")
 fi
 
-gh search prs --limit 5 --json number,title,createdAt,url,state \
-  --author "$author" --sort created --order desc "${state_args[@]}" \
-  | jq -r '.[] | [.state, .number, .createdAt, .title, .url] | @tsv' \
-  | while IFS=$'\t' read -r state number created_at title url; do
+search_query="is:pr author:${author} sort:created-desc"
+if [[ -n "$state_filter" ]]; then
+  search_query+=" state:${state_filter}"
+fi
+
+gh api graphql \
+  -f query='query($searchQuery: String!) {
+    search(type: ISSUE, query: $searchQuery, first: 5) {
+      nodes {
+        ... on PullRequest {
+          number
+          title
+          createdAt
+          url
+          state
+          headRefName
+        }
+      }
+    }
+  }' \
+  -F searchQuery="$search_query" \
+  | jq -r '.data.search.nodes[]? | [(.state | ascii_downcase), .number, (.headRefName // "-"), .createdAt, .title, .url] | @tsv' \
+  | while IFS=$'\t' read -r state number branch_name created_at title url; do
       files_url="${url}/files"
       monorepo_summary="monorepo:n/a"
       monorepo_url=""
@@ -305,7 +324,6 @@ gh search prs --limit 5 --json number,title,createdAt,url,state \
       bk_running=""
       bk_failed=""
       bk_color="$GRAY"
-      branch_name="$(gh pr view "$url" --json headRefName -q .headRefName 2>/dev/null || true)"
       if [[ -z "$branch_name" || "$branch_name" == "null" ]]; then
         branch_name="-"
       fi
@@ -326,12 +344,28 @@ gh search prs --limit 5 --json number,title,createdAt,url,state \
       if (( ${#display_title} > TITLE_WIDTH )); then
         display_title="${display_title:0:$((TITLE_WIDTH-1))}…"
       fi
-      printf "%b#%s%b\t%-*s\t%s\t%b%s%b\n%b%s%b        %b%s%b\n%b%s%b" \
+
+      num_text="#${number}"
+      # Approximate visual column where branch starts on row 1 (tab stop = 8).
+      branch_col=$(( (${#num_text} / 8 + 1) * 8 ))
+      branch_col=$(( branch_col + TITLE_WIDTH ))
+      branch_col=$(( (branch_col / 8 + 1) * 8 ))
+
+      url_len=${#url}
+      if (( url_len < branch_col )); then
+        file_pad=$(( branch_col - url_len ))
+      else
+        file_pad=1
+      fi
+      printf -v files_spacer '%*s' "$file_pad" ''
+
+      printf "%b#%s%b\t%-*s\t%s\t%b%s%b\n%b%s%b%s%b%s%b\n%b%s%b" \
         "$num_color" "$number" "$RESET" \
         "$TITLE_WIDTH" "$display_title" \
         "$branch_name" \
         "$GRAY" "$created_at" "$RESET" \
         "$CYAN" "$url" "$RESET" \
+        "$files_spacer" \
         "$CYAN" "$files_url" "$RESET" \
         "$monorepo_color" "$monorepo_summary" "$RESET"
 
