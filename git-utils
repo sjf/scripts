@@ -31,18 +31,18 @@ function has_local_changes() {
 }
 
 function branch_exists() {
-  name=$1
+  local name=$1
   git show-ref --verify --quiet refs/heads/"$name"
 }
 
 function remote_branch_exists() {
-  name=$1
+  local name=$1
   echo Checking remote branches...
   git ls-remote --exit-code --heads origin "$name" >/dev/null 2>&1
 }
 
 function co() {
-  name=$1
+  local name=$1
   # Check if branch exists locally
   if git show-ref --verify --quiet refs/heads/"$name"; then
       git checkout "$name"
@@ -61,7 +61,7 @@ function co() {
 NEED_POP=
 
 function stash_before() {
-  NAME=${1:-}
+  local NAME=${1:-}
   if has_local_changes; then
     echo '----------- STASHING ----------'
     git stash -q -m "$NAME" --include-untracked
@@ -87,7 +87,7 @@ function createPrUrl() {
 }
 
 function get_name() {
-  NAME=$1
+  local NAME=$1
   # Get current date components
   DAY=$(date +%d)
   MONTH=$(date +%B)

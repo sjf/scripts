@@ -9,8 +9,13 @@ BRANCH=${1:-$(cat /dev/random | tr -dc 'a-z' | head -c 4)}
 
 NAME=$(get_name $BRANCH)
 
-set -x
+#set -x
+
+stash_before gitnb-temp
+
 git checkout $MAIN
 git fetch origin "$MAIN"
 git merge --ff-only "origin/$MAIN"
 git checkout -b $NAME
+
+pop_after || (rich "[bold red]FAILED TO POP STASH![/bold red]" --print && exit 1)
