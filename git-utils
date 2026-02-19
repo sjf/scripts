@@ -64,7 +64,7 @@ function stash_before() {
   local NAME=${1:-}
   if has_local_changes; then
     echo '----------- STASHING ----------'
-    git stash -q -m "$NAME" --include-untracked
+    git stash -q -m "$NAME"  # --include-untracked turned off for performance
     NEED_POP=1
   else
     echo '----------- not stashing ----------'

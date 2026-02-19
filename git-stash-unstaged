@@ -1,0 +1,14 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+#set -x #print commands
+
+. ~/oscripts/default-paths.sh
+
+if [ "$#" -gt 0 ]; then
+  PATHS=("$@")
+else
+  PATHS=("${DEFAULT_PATHS[@]}")
+fi
+
+git stash push --keep-index -- "${PATHS[@]}" # --include-untracked remove for performance

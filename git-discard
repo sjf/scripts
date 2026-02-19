@@ -10,14 +10,20 @@ while getopts ":a" opt; do
 done
 shift $((OPTIND - 1))
 
-FILES="${@:-codex api/gaas}"
+. ~/oscripts/default-paths.sh
+
+if [ "$#" -gt 0 ]; then
+  FILES=("$@")
+else
+  FILES=("${DEFAULT_PATHS[@]}")
+fi
 
 # untracked (and optionally ignored) files
-to_remove=$(git clean -nd${clean_flag} $FILES | sed 's/Would remove //')
+to_remove=$(git clean -nd${clean_flag} -- "${FILES[@]}" | sed 's/^Would remove //')
 
 # modified tracked files
 # Use --name-only for a fast check of tracked changes.
-modified_files=$(git diff --name-only $FILES)
+modified_files=$(git diff --name-only -- "${FILES[@]}")
 
 if [[ -z "$to_remove" && -z "$modified_files" ]]; then
   echo No changes
@@ -40,12 +46,12 @@ read -p "Continue? (y/N): " -r
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
   if [ -n "$modified_files" ]; then
-    echo git restore $FILES
-    git restore $FILES
+    echo "git restore -- ${FILES[*]}"
+    git restore -- "${FILES[@]}"
   fi
   if [ -n "$to_remove" ]; then
-    echo git clean -fd${clean_flag} $FILES
-    git clean -fd${clean_flag} $FILES
+    echo "git clean -fd${clean_flag} -- ${FILES[*]}"
+    git clean -fd${clean_flag} -- "${FILES[@]}"
   fi
 else
   echo "Cancelled"
