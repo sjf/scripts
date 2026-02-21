@@ -3,12 +3,15 @@
 set -u #fail on undefined variable
 #set -x #print commands
 
-CURRENT_BRANCH=$(git branch --show-current)
+[[ -f ~/oscripts/default-paths.sh ]] && . ~/oscripts/default-paths.sh
+. ~/scripts/log-utils.sh
 
-REPO=$(git remote get-url origin | sed 's/.*\///' | sed 's/\.git$//')
+CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || true)"
+
+REPO=$(git remote get-url origin 2>/dev/null | sed 's/.*\///' | sed 's/\.git$//')
 
 case "$REPO" in
-  sjf|openai)
+  sjf|"$MONOREPO")
     MAIN=master
     ;;
   *)
@@ -24,7 +27,11 @@ function has_local_changes() {
   if ! git diff-index --quiet HEAD -- ; then
     return 0  # Has changes to tracked files
   fi
-  if [[ -n $(git ls-files --others --exclude-standard) ]]; then
+  if [[ -n ${DEFAULT_PATHS+x} && ${#DEFAULT_PATHS[@]} -gt 0 ]]; then
+    if [[ -n $(git ls-files --others --exclude-standard -- "${DEFAULT_PATHS[@]}") ]]; then
+      return 0  # Has untracked files in default paths
+    fi
+  elif [[ -n $(git ls-files --others --exclude-standard) ]]; then
     return 0  # Has untracked files
   fi
   return 1  # No changes
@@ -37,7 +44,7 @@ function branch_exists() {
 
 function remote_branch_exists() {
   local name=$1
-  echo Checking remote branches...
+  info Checking remote branches...
   git ls-remote --exit-code --heads origin "$name" >/dev/null 2>&1
 }
 
