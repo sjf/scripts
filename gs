@@ -11,9 +11,9 @@ if [[ -z "$REPO" ]]; then
 fi
 if [[ "$REPO" == "${MONOREPO:-}" ]]; then
   info Not showing uptracked files
-  git status
-else
   git status -uno
+else
+  git status
 fi
 
 

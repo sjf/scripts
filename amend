@@ -3,6 +3,8 @@ set -e #exit on failed command
 set -u #fail on undefined variable
 #set -x #print commands
 
+. ~/log-utils.sh
+
 dry_run=false
 force=false
 
@@ -29,9 +31,11 @@ fi
 
 echo "$(tput bold)$(tput setaf 6)Adding these files to the current commit$(tput sgr0)"
 echo
-git diff --staged --name-only
+git --no-pager diff --staged
 echo
-git log -1
+echo "$(tput bold)$(tput setaf 6)Current commit message$(tput sgr0)"
+echo
+git log -1 --format=%B
 
 
 if [[ "$dry_run" == true ]]; then
@@ -54,3 +58,4 @@ fi
 
 git commit --amend --no-edit
 git push --force-with-lease
+ok "Pushed amended commit to remote."
