@@ -23,6 +23,7 @@ Behavior:
   - DRY RUN (default): prints which commits would be kept; makes no changes.
   - APPLY: creates a backup branch, resets current branch to $UPSTREAM,
           cherry-picks the top N commits from the original branch (oldest->newest),
+          pauses for conflict resolution if needed,
           then pushes with --force-with-lease back to the same branch.
 
 Examples:
@@ -30,6 +31,32 @@ Examples:
   $(basename "$0") 1 -a
   $(basename "$0") 3
 EOF
+}
+
+continue_cherry_pick_sequence() {
+  local backup_branch="$1"
+  local cherry_pick_head
+  cherry_pick_head="$(git rev-parse --git-path CHERRY_PICK_HEAD)"
+
+  while [[ -f "$cherry_pick_head" ]]; do
+    echo
+    err "Cherry-pick paused due to conflicts."
+    printf "%sResolve the conflicts, stage the files, then press Enter to continue.%s\n" "$YELLOW" "$RESET"
+    printf "%sType 'abort' to stop here and keep your original branch state in %s.%s\n" "$YELLOW" "$backup_branch" "$RESET"
+
+    read -r -p "> " response
+    if [[ "$response" == "abort" ]]; then
+      git cherry-pick --abort
+      err "Aborted cherry-pick sequence. Original branch state is preserved in $backup_branch"
+      exit 1
+    fi
+
+    if git cherry-pick --continue; then
+      :
+    else
+      err "git cherry-pick --continue failed. Resolve remaining conflicts and try again."
+    fi
+  done
 }
 
 if [[ $# -lt 1 || $# -gt 2 ]]; then
@@ -105,10 +132,15 @@ info "Created backup branch: $BACKUP"
 
 git reset --hard "$UPSTREAM" >/dev/null
 
-for sha in "${COMMITS[@]}"; do
-  info "cherry-pick $sha"
-  git cherry-pick "$sha"
-done
+plan "Cherry-picking ${#COMMITS[@]} commit(s) as a single sequence..."
+if ! git cherry-pick "${COMMITS[@]}"; then
+  if [[ -f "$(git rev-parse --git-path CHERRY_PICK_HEAD)" ]]; then
+    continue_cherry_pick_sequence "$BACKUP"
+  else
+    err "Cherry-pick failed before entering conflict resolution. Original branch state is preserved in $BACKUP"
+    exit 1
+  fi
+fi
 
 info "Pushing with --force-with-lease..."
 git push --force-with-lease "$REMOTE" "$BRANCH"

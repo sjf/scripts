@@ -17,8 +17,8 @@ else
   RESET=""
 fi
 
-info() { printf "%s[info]%s %s\n" "$CYAN" "$RESET" "$*"; }
-plan() { printf "%s[plan]%s %s\n" "$YELLOW" "$RESET" "$*"; }
-ok()   { printf "%s[ok]%s %s\n" "$GREEN" "$RESET" "$*"; }
-err()  { printf "%sERROR:%s %s\n" "$RED$BOLD" "$RESET" "$*" >&2; }
-dry()  { printf "%s[dry-run]%s %s\n" "$YELLOW" "$RESET" "$*"; }
+info() { printf "%s[INFO] %s%s\n" "$CYAN" "$*" "$RESET"; }
+plan() { printf "%s[PLAN] %s%s\n" "$YELLOW" "$*" "$RESET"; }
+ok()   { printf "%s[OK] %s%s\n" "$YELLOW" "$*" "$RESET"; }
+err()  { printf "%sERROR: %s%s\n" "$RED$BOLD" "$*" "$RESET" >&2; }
+dry()  { printf "%s[DRY-RUN] %s%s\n" "$YELLOW" "$*" "$RESET"; }

@@ -3,7 +3,7 @@ set -e #exit on failed command
 set -u #fail on undefined variable
 #set -x #print commands
 
-. ~/log-utils.sh
+. ~/scripts/log-utils.sh
 
 dry_run=false
 force=false
