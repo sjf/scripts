@@ -82,6 +82,7 @@ printf "%s for %s...\n" "$header_prefix" "$author"
 # Use GitHub search to find PRs across all repos.
 # We rely on search qualifiers:
 #   - is:pr
+#   - -is:draft
 #   - author:<user>
 #   - sort:created-desc
 #   - state:open|closed
@@ -95,6 +96,10 @@ RED="\033[31m"
 WHITE="\033[97m"
 RESET="\033[0m"
 TITLE_WIDTH=60
+OUT_FILE="/tmp/out.txt"
+
+# Debug log for PR review decision exploration.
+: > "$OUT_FILE"
 
 get_monorepo_check_info() {
   local pr_url="$1"
@@ -294,7 +299,7 @@ if [[ -n "$state_filter" ]]; then
   state_args=(--state "$state_filter")
 fi
 
-search_query="is:pr author:${author} sort:created-desc"
+search_query="is:pr -is:draft author:${author} sort:created-desc"
 if [[ -n "$state_filter" ]]; then
   search_query+=" state:${state_filter}"
 fi
@@ -310,13 +315,14 @@ gh api graphql \
           url
           state
           headRefName
+          reviewDecision
         }
       }
     }
   }' \
   -F searchQuery="$search_query" \
-  | jq -r '.data.search.nodes[]? | [(.state | ascii_downcase), .number, (.headRefName // "-"), .createdAt, .title, .url] | @tsv' \
-  | while IFS=$'\t' read -r state number branch_name created_at title url; do
+  | jq -r '.data.search.nodes[]? | [(.state | ascii_downcase), .number, (.headRefName // "-"), .createdAt, .title, .url, (.reviewDecision // "")] | @tsv' \
+  | while IFS=$'\t' read -r state number branch_name created_at title url review_decision; do
       files_url="${url}/files"
       monorepo_summary="monorepo:n/a"
       monorepo_url=""
@@ -328,6 +334,9 @@ gh api graphql \
       if [[ -z "$branch_name" || "$branch_name" == "null" ]]; then
         branch_name="-"
       fi
+
+      printf 'pr=%s\tbranch=%s\treview_decision=%s\n' \
+        "$number" "$branch_name" "${review_decision:-}" >> "$OUT_FILE"
 
       if [[ "$state" == "open" ]]; then
         IFS=$'\t' read -r monorepo_summary monorepo_url monorepo_color < <(get_monorepo_check_info "$url")
