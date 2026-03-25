@@ -136,7 +136,13 @@ get_monorepo_check_info() {
     fi
   fi
 
-  printf "%s\t%s\t%s\n" "$monorepo_summary" "$monorepo_url" "$monorepo_color"
+  # Use a non-whitespace delimiter so empty middle fields are preserved by `read`.
+  printf "%s\x1f%s\x1f%s\n" "$monorepo_summary" "$monorepo_url" "$monorepo_color"
+}
+
+is_buildkite_url() {
+  local url="$1"
+  [[ "$url" =~ ^https://buildkite\.com/[^/]+/[^/]+/builds/[0-9]+([/?#].*)?$ ]]
 }
 
 get_buildkite_status_info() {
@@ -155,7 +161,7 @@ get_buildkite_status_info() {
   local running_count
   local status_color="$GRAY"
 
-  if [[ "$buildkite_url" =~ ^https://buildkite\.com/([^/]+)/([^/]+)/builds/([0-9]+) ]]; then
+  if [[ "$buildkite_url" =~ ^https://buildkite\.com/([^/]+)/([^/]+)/builds/([0-9]+)([/?#].*)?$ ]]; then
     org="${BASH_REMATCH[1]}"
     pipeline="${BASH_REMATCH[2]}"
     build="${BASH_REMATCH[3]}"
@@ -339,8 +345,8 @@ gh api graphql \
         "$number" "$branch_name" "${review_decision:-}" >> "$OUT_FILE"
 
       if [[ "$state" == "open" ]]; then
-        IFS=$'\t' read -r monorepo_summary monorepo_url monorepo_color < <(get_monorepo_check_info "$url")
-        if [[ -n "$monorepo_url" ]]; then
+        IFS=$'\x1f' read -r monorepo_summary monorepo_url monorepo_color < <(get_monorepo_check_info "$url")
+        if is_buildkite_url "$monorepo_url"; then
           IFS=$'\t' read -r bk_summary bk_running bk_failed bk_color < <(get_buildkite_status_info "$monorepo_url")
         fi
       fi
@@ -379,7 +385,7 @@ gh api graphql \
         "$CYAN" "$files_url" "$RESET" \
         "$monorepo_color" "$monorepo_summary" "$RESET"
 
-      if [[ -n "$monorepo_url" ]]; then
+      if is_buildkite_url "$monorepo_url"; then
         printf "\n  %b%s%b" "$CYAN" "$monorepo_url" "$RESET"
       fi
 
