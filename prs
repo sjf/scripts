@@ -86,6 +86,9 @@ printf "%s for %s...\n" "$header_prefix" "$author"
 #   - author:<user>
 #   - sort:created-desc
 #   - state:open|closed
+#
+# We fetch newest first to keep "last 5" semantics, then sort by PR number
+# so output is shown in creation order.
 # Colors (ANSI)
 PINK="\033[95m"
 GRAY="\033[90m"
@@ -96,10 +99,6 @@ RED="\033[31m"
 WHITE="\033[97m"
 RESET="\033[0m"
 TITLE_WIDTH=60
-OUT_FILE="/tmp/out.txt"
-
-# Debug log for PR review decision exploration.
-: > "$OUT_FILE"
 
 get_monorepo_check_info() {
   local pr_url="$1"
@@ -272,7 +271,7 @@ get_buildkite_status_info() {
     | ($jobs | length) as $total
     | (if $total == 0 then 0 else ((($completed|length) * 1000 / $total) | floor) end) as $pct_tenths
     | [
-        "running=\($running|length) queued=\($queued|length) failed=\($failed|length) completed=\($completed|length)/\($total) (\(($pct_tenths/10)|floor).\($pct_tenths%10)%) elapsed=\($build_elapsed)",
+        "failed:\($failed|length) completed:\($completed|length)/\($total) (\(($pct_tenths/10)|floor).\($pct_tenths%10)%) elapsed=\($build_elapsed)",
         limited_list($running),
         limited_list($failed)
       ]
@@ -285,8 +284,11 @@ get_buildkite_status_info() {
   fi
 
   IFS=$'\t' read -r summary running failed <<< "$jq_result"
-  failed_count="$(sed -nE 's/.*failed=([0-9]+).*/\1/p' <<< "$summary")"
-  running_count="$(sed -nE 's/.*running=([0-9]+).*/\1/p' <<< "$summary")"
+  failed_count="$(sed -nE 's/.*failed:([0-9]+).*/\1/p' <<< "$summary")"
+  running_count=0
+  if [[ -n "$running" && "$running" != "none" ]]; then
+    running_count=1
+  fi
 
   if [[ -n "$failed_count" && "$failed_count" -gt 0 ]]; then
     status_color="$RED"
@@ -322,17 +324,38 @@ gh api graphql \
           state
           headRefName
           reviewDecision
+          latestReviews(first: 20) {
+            nodes {
+              state
+              submittedAt
+              author {
+                login
+              }
+            }
+          }
+          reviews(first: 50) {
+            nodes {
+              state
+              submittedAt
+              author {
+                login
+              }
+            }
+          }
         }
       }
     }
   }' \
   -F searchQuery="$search_query" \
-  | jq -r '.data.search.nodes[]? | [(.state | ascii_downcase), .number, (.headRefName // "-"), .createdAt, .title, .url, (.reviewDecision // "")] | @tsv' \
-  | while IFS=$'\t' read -r state number branch_name created_at title url review_decision; do
-      files_url="${url}/files"
+  | jq -r '.data.search.nodes[]? | [(.state | ascii_downcase), .number, (.headRefName // "-"), .createdAt, .title, .url, (.reviewDecision // "__NONE__"), ((.latestReviews.nodes // []) | map({state:(.state // ""), author:(.author.login // ""), submittedAt:(.submittedAt // "")}) | @json), ((.reviews.nodes // []) | map({state:(.state // ""), author:(.author.login // ""), submittedAt:(.submittedAt // "")}) | @json)] | @tsv' \
+  | sort -t $'\t' -k2,2n \
+  | while IFS=$'\t' read -r state number branch_name created_at title url review_decision latest_reviews_json reviews_json; do
+      detail_url=""
       monorepo_summary="monorepo:n/a"
       monorepo_url=""
       monorepo_color="$GRAY"
+      review_label=""
+      review_color="$GRAY"
       bk_summary=""
       bk_running=""
       bk_failed=""
@@ -341,12 +364,116 @@ gh api graphql \
         branch_name="-"
       fi
 
-      printf 'pr=%s\tbranch=%s\treview_decision=%s\n' \
-        "$number" "$branch_name" "${review_decision:-}" >> "$OUT_FILE"
+      if [[ "${review_decision:-}" == "__NONE__" ]]; then
+        review_decision=""
+      fi
+
+      case "$review_decision" in
+        APPROVED)
+          review_label="approved"
+          review_color="$YELLOW"
+          ;;
+        CHANGES_REQUESTED)
+          review_label="changes requested"
+          review_color="$RED"
+          ;;
+        REVIEW_REQUIRED)
+          review_label="review required"
+          review_color="$GRAY"
+          ;;
+        COMMENTED)
+          review_label=""
+          review_color="$GRAY"
+          ;;
+      esac
+
+      if [[ -z "$review_label" ]]; then
+        review_label="$(jq -r '
+          [ .[]? | select((.author // "") != "chatgpt-codex-connector") ] as $r
+          | if any($r[]?; .state == "CHANGES_REQUESTED") then
+            "changes requested"
+          elif any($r[]?; .state == "APPROVED") then
+            "approved"
+          elif any($r[]?; .state == "REVIEW_REQUIRED") then
+            "review required"
+          elif any($r[]?; .state == "COMMENTED") then
+            "commented"
+          elif any($r[]?; .state == "DISMISSED") then
+            "dismissed"
+          else
+            ""
+          end
+        ' <<< "${latest_reviews_json:-[]}" 2>/dev/null || true)"
+      fi
+
+      if [[ -z "$review_label" ]]; then
+        review_label="$(jq -r '
+          [ .[]? | select((.author // "") != "chatgpt-codex-connector") ] as $r
+          | if any($r[]?; .state == "CHANGES_REQUESTED") then
+            "changes requested"
+          elif any($r[]?; .state == "APPROVED") then
+            "approved"
+          elif any($r[]?; .state == "REVIEW_REQUIRED") then
+            "review required"
+          elif any($r[]?; .state == "COMMENTED") then
+            "commented"
+          elif any($r[]?; .state == "DISMISSED") then
+            "dismissed"
+          else
+            ""
+          end
+        ' <<< "${reviews_json:-[]}" 2>/dev/null || true)"
+      fi
+
+      if [[ -z "$review_label" ]]; then
+        review_label="$(jq -r '
+          if any(.[]?; .state == "CHANGES_REQUESTED") then
+            "changes requested"
+          elif any(.[]?; .state == "APPROVED") then
+            "approved"
+          elif any(.[]?; .state == "REVIEW_REQUIRED") then
+            "review required"
+          elif any(.[]?; .state == "COMMENTED") then
+            "commented"
+          elif any(.[]?; .state == "DISMISSED") then
+            "dismissed"
+          else
+            ""
+          end
+        ' <<< "${latest_reviews_json:-[]}" 2>/dev/null || true)"
+      fi
+
+      if [[ -z "$review_label" ]]; then
+        review_label=""
+        review_color="$GRAY"
+      fi
+
+      case "$review_label" in
+        approved)
+          review_color="$YELLOW"
+          ;;
+        "changes requested")
+          review_color="$RED"
+          ;;
+        "review required")
+          review_color="$YELLOW"
+          ;;
+        commented)
+          review_color="$WHITE"
+          ;;
+        dismissed|"")
+          review_color="$GRAY"
+          ;;
+      esac
+
+      if [[ -n "$review_label" ]]; then
+        review_label="REVIEW:${review_label^^}"
+      fi
 
       if [[ "$state" == "open" ]]; then
         IFS=$'\x1f' read -r monorepo_summary monorepo_url monorepo_color < <(get_monorepo_check_info "$url")
         if is_buildkite_url "$monorepo_url"; then
+          detail_url="$monorepo_url"
           IFS=$'\t' read -r bk_summary bk_running bk_failed bk_color < <(get_buildkite_status_info "$monorepo_url")
         fi
       fi
@@ -375,24 +502,27 @@ gh api graphql \
       fi
       printf -v files_spacer '%*s' "$file_pad" ''
 
-      printf "%b#%s%b\t%-*s\t%s\t%b%s%b\n%b%s%b%s%b%s%b\n%b%s%b" \
+      printf "%b#%s%b\t%-*s\t%s\t%b%s%b\n" \
         "$num_color" "$number" "$RESET" \
         "$TITLE_WIDTH" "$display_title" \
         "$branch_name" \
-        "$GRAY" "$created_at" "$RESET" \
-        "$CYAN" "$url" "$RESET" \
-        "$files_spacer" \
-        "$CYAN" "$files_url" "$RESET" \
-        "$monorepo_color" "$monorepo_summary" "$RESET"
+        "$review_color" "$review_label" "$RESET"
 
-      if is_buildkite_url "$monorepo_url"; then
-        printf "\n  %b%s%b" "$CYAN" "$monorepo_url" "$RESET"
+      if [[ -n "$detail_url" ]]; then
+        printf "%b%s%b%s%b%s%b\n%b%s%b" \
+          "$CYAN" "$url" "$RESET" \
+          "$files_spacer" \
+          "$CYAN" "$detail_url" "$RESET" \
+          "$monorepo_color" "$monorepo_summary" "$RESET"
+      else
+        printf "%b%s%b\n%b%s%b" \
+          "$CYAN" "$url" "$RESET" \
+          "$monorepo_color" "$monorepo_summary" "$RESET"
       fi
 
       if [[ -n "$bk_summary" ]]; then
-        printf "\n  %bbk:%s%b" "$bk_color" "$bk_summary" "$RESET"
-        if [[ -n "$bk_running" && "$bk_running" != "none" ]]; then
-          printf "\n  %brunning:%b %s" "$YELLOW" "$RESET" "$bk_running"
+        if [[ "$monorepo_summary" != "monorepo:pass" ]]; then
+          printf "\n  %b%s%b" "$bk_color" "$bk_summary" "$RESET"
         fi
         if [[ -n "$bk_failed" && "$bk_failed" != "none" ]]; then
           printf "\n  %bfailed:%b %s" "$RED" "$RESET" "$bk_failed"
