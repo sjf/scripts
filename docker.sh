@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # ^^ this needs bash 4+, mac is only on 3.
-# Use the first bash from the path and * not /bin/bash *
-#set -x
+# Use the first bash from the path and not /bin/bash
+# set -x
+
+bash --version | grep -q -e 'version [45]' || { echo "Error: Bash version must be 4+" >&2; exit 1; }
 
 COMPOSE_FILE=${COMPOSE_FILE:-compose.yaml}
 

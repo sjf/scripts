@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: git-backup [optional-branch-prefix]
+
+Creates a local backup branch from the current HEAD.
+If no prefix is provided, defaults to "backup/<current-branch>".
+
+Examples:
+  git-backup
+  git-backup pre-release
+USAGE
+}
+
+if [[ ${1:-""} == "-h" || ${1:-""} == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+prefix="${1:-backup}"
+
+git_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -z "$git_root" ]]; then
+  echo "error: not inside a git repository" >&2
+  exit 1
+fi
+
+current=$(git branch --show-current || true)
+if [[ -z "$current" ]]; then
+  current="detached-HEAD"
+fi
+
+stamp="$(date +%Y%m%d-%H%M%S)"
+backup_branch="${prefix}/${current}-${stamp}"
+
+# If the target branch already exists, append a short counter suffix.
+if git show-ref --verify --quiet "refs/heads/$backup_branch"; then
+  i=1
+  while git show-ref --verify --quiet "refs/heads/${backup_branch}-${i}"; do
+    ((i++))
+done
+  backup_branch="${backup_branch}-${i}"
+fi
+
+HEAD_SHA=$(git rev-parse --short=12 HEAD)
+git branch "$backup_branch" HEAD
+
+echo "Created backup branch: $backup_branch"
+echo "From commit: $HEAD_SHA"
+echo "Current branch: ${current}"

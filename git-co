@@ -1,0 +1,28 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+#set -x #print commands
+
+. ~/scripts/git-utils
+
+NAME="${1:-$MAIN}"
+
+if [ "$NAME" = "$MAIN" ]; then
+  git checkout $MAIN
+
+elif branch_exists $NAME || remote_branch_exists $NAME; then
+  git checkout $NAME
+
+elif ENDING_BRANCH=$(git branch --format='%(refname:short)' | grep -- "-${NAME}$" | head -1) && [ -n "$ENDING_BRANCH" ]; then
+  git checkout $ENDING_BRANCH
+
+# elif [[ "$NAME" == sjf-* ]]; then
+#   co $NAME
+
+# else
+#   FULL_NAME=$(get_name $NAME)
+#   co $FULL_NAME
+else
+  echo Couldn\'t find branch $NAME local or remote in $REPO
+fi
+

@@ -1,0 +1,120 @@
+#!/bin/bash
+#set -e #exit on failed command
+set -u #fail on undefined variable
+#set -x #print commands
+
+[[ -f ~/oscripts/default-paths.sh ]] && . ~/oscripts/default-paths.sh
+. ~/scripts/log-utils.sh
+
+CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || true)"
+
+REPO=$(git remote get-url origin 2>/dev/null | sed 's/.*\///' | sed 's/\.git$//')
+
+case "$REPO" in
+  sjf|"$MONOREPO")
+    MAIN=master
+    ;;
+  *)
+    MAIN=main
+    ;;
+esac
+
+# MAIN=main
+
+#MAIN=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
+
+function has_local_changes() {
+  if ! git diff-index --quiet HEAD -- ; then
+    return 0  # Has changes to tracked files
+  fi
+  if [[ -n ${DEFAULT_PATHS+x} && ${#DEFAULT_PATHS[@]} -gt 0 ]]; then
+    if [[ -n $(git ls-files --others --exclude-standard -- "${DEFAULT_PATHS[@]}") ]]; then
+      return 0  # Has untracked files in default paths
+    fi
+  elif [[ -n $(git ls-files --others --exclude-standard) ]]; then
+    return 0  # Has untracked files
+  fi
+  return 1  # No changes
+}
+
+function branch_exists() {
+  local name=$1
+  git show-ref --verify --quiet refs/heads/"$name"
+}
+
+function remote_branch_exists() {
+  local name=$1
+  info Checking remote branches...
+  git ls-remote --exit-code --heads origin "$name" >/dev/null 2>&1
+}
+
+function co() {
+  local name=$1
+  # Check if branch exists locally
+  if git show-ref --verify --quiet refs/heads/"$name"; then
+      git checkout "$name"
+      return
+  fi
+  # Check if branch exists on remote
+  if git ls-remote --heads origin "$name" | grep -q "$name"; then
+      git checkout -b "$name" origin/"$name"
+      return
+  fi
+  # Create a new branch
+  git checkout -b "$name"
+}
+
+
+NEED_POP=
+
+function stash_before() {
+  local NAME=${1:-}
+  if has_local_changes; then
+    echo '----------- STASHING ----------'
+    git stash -q -m "$NAME"  # --include-untracked turned off for performance
+    NEED_POP=1
+  else
+    echo '----------- not stashing ----------'
+  fi
+}
+
+function pop_after() {
+  if [[ -n $NEED_POP ]]; then
+    echo '----------- POPPING ----------'
+    git stash pop -q
+    NEED_POP=
+  else
+    echo '----------- not popping ----------'
+  fi
+}
+
+function createPrUrl() {
+  repo_url=$(git remote get-url origin | sed 's/\.git$//' | sed 's/git@github.com:/https:\/\/github.com\//')
+  echo "$repo_url/compare/$CURRENT_BRANCH"
+}
+
+function get_name() {
+  local NAME=$1
+  # Get current date components
+  DAY=$(date +%d)
+  MONTH=$(date +%B)
+  case "$MONTH" in
+      "January") CHAR="jn" ;;
+      "February") CHAR="f" ;;
+      "March") CHAR="m" ;;
+      "April") CHAR="ap" ;;
+      "May") CHAR="my" ;;
+      "June") CHAR="j" ;;
+      "July") CHAR="jl" ;;
+      "August") CHAR="a" ;;
+      "September") CHAR="s" ;;
+      "October") CHAR="o" ;;
+      "November") CHAR="n" ;;
+      "December") CHAR="d" ;;
+  esac
+  # Remove leading zero from day
+  DAY_NUM=$((10#$DAY))
+  # Create the full branch name
+  FULL_BRANCH_NAME="sjf-${CHAR}${DAY_NUM}-${NAME}"
+  echo $FULL_BRANCH_NAME
+}

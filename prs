@@ -1,0 +1,533 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# List the last 5 GitHub pull requests authored by a user.
+#
+# Prints one PR per line:
+#   <number>  <createdAt>  <title>
+#   <url>
+#
+# Requirements:
+#   - GitHub CLI: https://cli.github.com/ (authenticated via `gh auth login`)
+#   - jq
+#   - curl (optional for Buildkite details)
+#
+# Usage:
+#   ghprs [github_username]
+#   ghprs -c [github_username]          # closed PRs only
+#
+
+usage() {
+  cat <<'USAGE'
+Usage: prs [-a|-c] [github_username]
+
+Options:
+  -a   All PRs (open + closed)
+  -c   Closed PRs only
+  -h   Help
+
+If github_username is omitted, defaults to: $USER
+
+Optional mapping file:
+  $HOME/.github-id-mapping
+  Format: sourced by bash, expected to define USERNAME_MAP associative array
+USAGE
+}
+
+closed_only=0
+all_states=0
+while getopts ":ach" opt; do
+  case "$opt" in
+    a) all_states=1 ;;
+    c) closed_only=1 ;;
+    h) usage; exit 0 ;;
+    *) usage; exit 2 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+if [[ $# -gt 1 ]]; then
+  usage
+  exit 2
+fi
+
+author_input="${1:-${USER:-sjf}}"
+author="$author_input"
+
+mapping_file="$HOME/.github-id-mapping"
+if [[ -f "$mapping_file" ]]; then
+  # shellcheck disable=SC1090
+  source "$mapping_file"
+  if declare -p USERNAME_MAP >/dev/null 2>&1; then
+    author="${USERNAME_MAP[$author_input]:-$author_input}"
+  fi
+fi
+
+state_filter="open"
+if [[ "$closed_only" -eq 1 ]]; then
+  state_filter="closed"
+elif [[ "$all_states" -eq 1 ]]; then
+  state_filter=""
+fi
+
+header_prefix="Open PRs"
+if [[ "$closed_only" -eq 1 ]]; then
+  header_prefix="Closed PRs"
+elif [[ "$all_states" -eq 1 ]]; then
+  header_prefix="All PRs"
+fi
+
+printf "%s for %s...\n" "$header_prefix" "$author"
+
+# Use GitHub search to find PRs across all repos.
+# We rely on search qualifiers:
+#   - is:pr
+#   - -is:draft
+#   - author:<user>
+#   - sort:created-desc
+#   - state:open|closed
+#
+# We fetch newest first to keep "last 5" semantics, then sort by PR number
+# so output is shown in creation order.
+# Colors (ANSI)
+PINK="\033[95m"
+GRAY="\033[90m"
+CYAN="\033[36m"
+GREEN="\033[32m"
+YELLOW="\033[33m"
+RED="\033[31m"
+WHITE="\033[97m"
+RESET="\033[0m"
+TITLE_WIDTH=60
+
+get_monorepo_check_info() {
+  local pr_url="$1"
+  local monorepo_summary="monorepo:n/a"
+  local monorepo_url=""
+  local monorepo_color="$GRAY"
+  local checks_json
+  local monorepo_match
+  local monorepo_status
+
+  checks_json="$(gh pr checks "$pr_url" --json name,workflow,state,bucket,link 2>/dev/null || true)"
+
+  if [[ -n "$checks_json" ]]; then
+    monorepo_match="$(jq -r '
+      map(select(
+        ((.name // "")  == $target_check_name_lc)
+      ))
+      | .[0] // empty
+      | [(.bucket // .state // "unknown"), (.link // "")]
+      | @tsv
+    ' --arg target_check_name_lc "buildkite/monorepo" <<< "$checks_json")"
+
+    if [[ -n "$monorepo_match" ]]; then
+      IFS=$'\t' read -r monorepo_status monorepo_url <<< "$monorepo_match"
+      monorepo_summary="monorepo:${monorepo_status}"
+      case "$monorepo_status" in
+        fail|cancel) monorepo_color="$RED" ;;
+        pending) monorepo_color="$YELLOW" ;;
+        pass) monorepo_color="$WHITE" ;;
+        *) monorepo_color="$GRAY" ;;
+      esac
+    else
+      monorepo_summary="monorepo:not-found"
+    fi
+  fi
+
+  # Use a non-whitespace delimiter so empty middle fields are preserved by `read`.
+  printf "%s\x1f%s\x1f%s\n" "$monorepo_summary" "$monorepo_url" "$monorepo_color"
+}
+
+is_buildkite_url() {
+  local url="$1"
+  [[ "$url" =~ ^https://buildkite\.com/[^/]+/[^/]+/builds/[0-9]+([/?#].*)?$ ]]
+}
+
+get_buildkite_status_info() {
+  local buildkite_url="$1"
+  local token
+  local org
+  local pipeline
+  local build
+  local api_url
+  local build_json
+  local jq_result
+  local summary
+  local running
+  local failed
+  local failed_count
+  local running_count
+  local status_color="$GRAY"
+
+  if [[ "$buildkite_url" =~ ^https://buildkite\.com/([^/]+)/([^/]+)/builds/([0-9]+)([/?#].*)?$ ]]; then
+    org="${BASH_REMATCH[1]}"
+    pipeline="${BASH_REMATCH[2]}"
+    build="${BASH_REMATCH[3]}"
+  else
+    printf "invalid-url\tnone\tnone\t%s\n" "$GRAY"
+    return
+  fi
+
+  token="${BUILDKITE_TOKEN:-${BUILDKITE_API_TOKEN:-}}"
+  if [[ -z "$token" ]]; then
+    printf "token-missing (set BUILDKITE_TOKEN or BUILDKITE_API_TOKEN)\tnone\tnone\t%s\n" "$GRAY"
+    return
+  fi
+
+  api_url="https://api.buildkite.com/v2/organizations/${org}/pipelines/${pipeline}/builds/${build}"
+  build_json="$(curl -fsSL \
+    -H "Authorization: Bearer ${token}" \
+    -H "Accept: application/json" \
+    "$api_url" 2>/dev/null || true)"
+
+  if [[ -z "$build_json" ]]; then
+    printf "api-error (unable to load build details)\tnone\tnone\t%s\n" "$GRAY"
+    return
+  fi
+
+  jq_result="$(jq -r --argjson now "$(date -u +%s)" '
+    def limited_list($items):
+      if ($items|length) == 0 then
+        "none"
+      else
+        ($items[:12] | join(", "))
+        + (if ($items|length) > 12 then ", +\(($items|length) - 12) more" else "" end)
+      end;
+    def format_elapsed($secs):
+      if $secs < 60 then
+        "\($secs)s"
+      elif $secs < 3600 then
+        "\(($secs/60|floor))m\(($secs%60|floor))s"
+      else
+        "\(($secs/3600|floor))h\((($secs%3600)/60|floor))m"
+      end;
+    def parse_ts($ts):
+      ($ts | tostring) as $s
+      | if $s == "" then
+          null
+        else
+          (try ($s | fromdateiso8601) catch
+            (try (($s | sub("\\.[0-9]+"; "")) | fromdateiso8601) catch null)
+          )
+        end;
+
+    def job_name: (.name // .label // .step_key // .id // "unknown");
+    def emojify:
+      gsub(":shipit:"; "✅")
+      | gsub(":bazel:"; "🧱")
+      | gsub(":pytest:"; "🧪")
+      | gsub(":deploy:"; "🚀")
+      | gsub(":exclamation:"; "❗")
+      | gsub(":waxing_crescent_moon:"; "🌒")
+      | gsub(":seedling:"; "🌱")
+      | gsub(":musical_score:"; "🎼")
+      | gsub(":weight_lifter:"; "🏋️");
+    def safe_name: (job_name | tostring | emojify | gsub("[\t\r\n]+"; " "));
+    def state: (.state // "unknown");
+    def is_script: ((.type // "script") == "script");
+    def is_running: (
+      state == "running" or state == "assigned" or state == "accepted" or
+      state == "canceling" or state == "timing_out"
+    );
+    def is_soft_failed: ((.soft_failed // false) == true);
+    def is_failed: (
+      (state == "failed" or state == "errored" or state == "timed_out")
+      and (is_soft_failed | not)
+    );
+    def is_queued: (
+      state == "scheduled" or state == "waiting" or state == "limited" or
+      state == "blocked" or state == "creating" or state == "pending"
+    );
+    def is_completed: (
+      state == "passed" or state == "skipped" or state == "canceled" or
+      state == "failed" or state == "errored" or state == "timed_out" or
+      state == "not_run"
+    );
+    def started_epoch:
+      ((.started_at // "") | tostring) as $ts
+      | if $ts == "" then
+          null
+        else
+          parse_ts($ts)
+        end;
+    def duration:
+      (started_epoch) as $start
+      | if $start == null then
+        "n/a"
+      else
+        ($now - $start) as $secs
+        | format_elapsed($secs)
+      end;
+
+    ((.started_at // .created_at // "") | tostring) as $build_start_ts
+    | (if $build_start_ts == "" then null else parse_ts($build_start_ts) end) as $build_start
+    | (if $build_start == null then "n/a" else format_elapsed($now - $build_start) end) as $build_elapsed
+    | ([.jobs[]? | select(type == "object") | select(is_script)]) as $jobs
+    | ($jobs | map(select(is_running) | "\(safe_name) (\(duration))")) as $running
+    | ($jobs | map(select(is_failed) | safe_name)) as $failed
+    | ($jobs | map(select(is_completed))) as $completed
+    | ($jobs | map(select(is_queued))) as $queued
+    | ($jobs | length) as $total
+    | (if $total == 0 then 0 else ((($completed|length) * 1000 / $total) | floor) end) as $pct_tenths
+    | [
+        "failed:\($failed|length) completed:\($completed|length)/\($total) (\(($pct_tenths/10)|floor).\($pct_tenths%10)%) elapsed=\($build_elapsed)",
+        limited_list($running),
+        limited_list($failed)
+      ]
+    | @tsv
+  ' <<< "$build_json" 2>/dev/null || true)"
+
+  if [[ -z "$jq_result" ]]; then
+    printf "parse-error (unable to summarize build details)\tnone\tnone\t%s\n" "$GRAY"
+    return
+  fi
+
+  IFS=$'\t' read -r summary running failed <<< "$jq_result"
+  failed_count="$(sed -nE 's/.*failed:([0-9]+).*/\1/p' <<< "$summary")"
+  running_count=0
+  if [[ -n "$running" && "$running" != "none" ]]; then
+    running_count=1
+  fi
+
+  if [[ -n "$failed_count" && "$failed_count" -gt 0 ]]; then
+    status_color="$RED"
+  elif [[ -n "$running_count" && "$running_count" -gt 0 ]]; then
+    status_color="$YELLOW"
+  else
+    status_color="$GREEN"
+  fi
+
+  printf "%s\t%s\t%s\t%s\n" "$summary" "$running" "$failed" "$status_color"
+}
+
+# Fetch last 5 results and print fields.
+state_args=()
+if [[ -n "$state_filter" ]]; then
+  state_args=(--state "$state_filter")
+fi
+
+search_query="is:pr -is:draft author:${author} sort:created-desc"
+if [[ -n "$state_filter" ]]; then
+  search_query+=" state:${state_filter}"
+fi
+
+gh api graphql \
+  -f query='query($searchQuery: String!) {
+    search(type: ISSUE, query: $searchQuery, first: 5) {
+      nodes {
+        ... on PullRequest {
+          number
+          title
+          createdAt
+          url
+          state
+          headRefName
+          reviewDecision
+          latestReviews(first: 20) {
+            nodes {
+              state
+              submittedAt
+              author {
+                login
+              }
+            }
+          }
+          reviews(first: 50) {
+            nodes {
+              state
+              submittedAt
+              author {
+                login
+              }
+            }
+          }
+        }
+      }
+    }
+  }' \
+  -F searchQuery="$search_query" \
+  | jq -r '.data.search.nodes[]? | [(.state | ascii_downcase), .number, (.headRefName // "-"), .createdAt, .title, .url, (.reviewDecision // "__NONE__"), ((.latestReviews.nodes // []) | map({state:(.state // ""), author:(.author.login // ""), submittedAt:(.submittedAt // "")}) | @json), ((.reviews.nodes // []) | map({state:(.state // ""), author:(.author.login // ""), submittedAt:(.submittedAt // "")}) | @json)] | @tsv' \
+  | sort -t $'\t' -k2,2n \
+  | while IFS=$'\t' read -r state number branch_name created_at title url review_decision latest_reviews_json reviews_json; do
+      detail_url=""
+      monorepo_summary="monorepo:n/a"
+      monorepo_url=""
+      monorepo_color="$GRAY"
+      review_label=""
+      review_color="$GRAY"
+      bk_summary=""
+      bk_running=""
+      bk_failed=""
+      bk_color="$GRAY"
+      if [[ -z "$branch_name" || "$branch_name" == "null" ]]; then
+        branch_name="-"
+      fi
+
+      if [[ "${review_decision:-}" == "__NONE__" ]]; then
+        review_decision=""
+      fi
+
+      case "$review_decision" in
+        APPROVED)
+          review_label="approved"
+          review_color="$YELLOW"
+          ;;
+        CHANGES_REQUESTED)
+          review_label="changes requested"
+          review_color="$RED"
+          ;;
+        REVIEW_REQUIRED)
+          review_label="review required"
+          review_color="$GRAY"
+          ;;
+        COMMENTED)
+          review_label=""
+          review_color="$GRAY"
+          ;;
+      esac
+
+      if [[ -z "$review_label" ]]; then
+        review_label="$(jq -r '
+          [ .[]? | select((.author // "") != "chatgpt-codex-connector") ] as $r
+          | if any($r[]?; .state == "CHANGES_REQUESTED") then
+            "changes requested"
+          elif any($r[]?; .state == "APPROVED") then
+            "approved"
+          elif any($r[]?; .state == "REVIEW_REQUIRED") then
+            "review required"
+          elif any($r[]?; .state == "COMMENTED") then
+            "commented"
+          elif any($r[]?; .state == "DISMISSED") then
+            "dismissed"
+          else
+            ""
+          end
+        ' <<< "${latest_reviews_json:-[]}" 2>/dev/null || true)"
+      fi
+
+      if [[ -z "$review_label" ]]; then
+        review_label="$(jq -r '
+          [ .[]? | select((.author // "") != "chatgpt-codex-connector") ] as $r
+          | if any($r[]?; .state == "CHANGES_REQUESTED") then
+            "changes requested"
+          elif any($r[]?; .state == "APPROVED") then
+            "approved"
+          elif any($r[]?; .state == "REVIEW_REQUIRED") then
+            "review required"
+          elif any($r[]?; .state == "COMMENTED") then
+            "commented"
+          elif any($r[]?; .state == "DISMISSED") then
+            "dismissed"
+          else
+            ""
+          end
+        ' <<< "${reviews_json:-[]}" 2>/dev/null || true)"
+      fi
+
+      if [[ -z "$review_label" ]]; then
+        review_label="$(jq -r '
+          if any(.[]?; .state == "CHANGES_REQUESTED") then
+            "changes requested"
+          elif any(.[]?; .state == "APPROVED") then
+            "approved"
+          elif any(.[]?; .state == "REVIEW_REQUIRED") then
+            "review required"
+          elif any(.[]?; .state == "COMMENTED") then
+            "commented"
+          elif any(.[]?; .state == "DISMISSED") then
+            "dismissed"
+          else
+            ""
+          end
+        ' <<< "${latest_reviews_json:-[]}" 2>/dev/null || true)"
+      fi
+
+      if [[ -z "$review_label" ]]; then
+        review_label=""
+        review_color="$GRAY"
+      fi
+
+      case "$review_label" in
+        approved)
+          review_color="$YELLOW"
+          ;;
+        "changes requested")
+          review_color="$RED"
+          ;;
+        "review required")
+          review_color="$YELLOW"
+          ;;
+        commented)
+          review_color="$WHITE"
+          ;;
+        dismissed|"")
+          review_color="$GRAY"
+          ;;
+      esac
+
+      if [[ -n "$review_label" ]]; then
+        review_label="REVIEW:${review_label^^}"
+      fi
+
+      if [[ "$state" == "open" ]]; then
+        IFS=$'\x1f' read -r monorepo_summary monorepo_url monorepo_color < <(get_monorepo_check_info "$url")
+        if is_buildkite_url "$monorepo_url"; then
+          detail_url="$monorepo_url"
+          IFS=$'\t' read -r bk_summary bk_running bk_failed bk_color < <(get_buildkite_status_info "$monorepo_url")
+        fi
+      fi
+
+      if [[ "$state" == "open" ]]; then
+        num_color="$PINK"
+      else
+        num_color="$GRAY"
+      fi
+      display_title="$title"
+      if (( ${#display_title} > TITLE_WIDTH )); then
+        display_title="${display_title:0:$((TITLE_WIDTH-1))}…"
+      fi
+
+      num_text="#${number}"
+      # Approximate visual column where branch starts on row 1 (tab stop = 8).
+      branch_col=$(( (${#num_text} / 8 + 1) * 8 ))
+      branch_col=$(( branch_col + TITLE_WIDTH ))
+      branch_col=$(( (branch_col / 8 + 1) * 8 ))
+
+      url_len=${#url}
+      if (( url_len < branch_col )); then
+        file_pad=$(( branch_col - url_len ))
+      else
+        file_pad=1
+      fi
+      printf -v files_spacer '%*s' "$file_pad" ''
+
+      printf "%b#%s%b\t%-*s\t%s\t%b%s%b\n" \
+        "$num_color" "$number" "$RESET" \
+        "$TITLE_WIDTH" "$display_title" \
+        "$branch_name" \
+        "$review_color" "$review_label" "$RESET"
+
+      if [[ -n "$detail_url" ]]; then
+        printf "%b%s%b%s%b%s%b\n%b%s%b" \
+          "$CYAN" "$url" "$RESET" \
+          "$files_spacer" \
+          "$CYAN" "$detail_url" "$RESET" \
+          "$monorepo_color" "$monorepo_summary" "$RESET"
+      else
+        printf "%b%s%b\n%b%s%b" \
+          "$CYAN" "$url" "$RESET" \
+          "$monorepo_color" "$monorepo_summary" "$RESET"
+      fi
+
+      if [[ -n "$bk_summary" ]]; then
+        if [[ "$monorepo_summary" != "monorepo:pass" ]]; then
+          printf "\n  %b%s%b" "$bk_color" "$bk_summary" "$RESET"
+        fi
+        if [[ -n "$bk_failed" && "$bk_failed" != "none" ]]; then
+          printf "\n  %bfailed:%b %s" "$RED" "$RESET" "$bk_failed"
+        fi
+      fi
+
+      printf "\n\n"
+    done

@@ -3,5 +3,5 @@ set -e #exit on failed command
 set -u #fail on undefined variable
 set -x #print commands
 
-
-git add .; git commit -m .;git push
+git reset --hard origin/HEAD
+git clean -fd

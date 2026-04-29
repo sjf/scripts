@@ -1,8 +1,22 @@
 #!/bin/bash
 set -e #exit on failed command
 set -u #fail on undefined variable
-# set -x #print commands
+#set -x #print commands
 
 PIDS=$(lsof -i:$1 |grep -v PID|sed 's/[[:space:]]\+/ /g'|cut -d' ' -f2)
 
-[ "$PIDS" ] && ps -o pid,user:20,time,cmd --width=120 -p $PIDS
+if [ -z "$PIDS" ]; then
+  echo No processes using port $1
+  exit
+fi
+
+# Choose the best command field for *this* ps
+if ps -o command= -p $$ >/dev/null 2>&1; then
+  CMD_FIELD=command   # macOS / BSD ps
+else
+  CMD_FIELD=args      # Linux / procps ps
+fi
+
+ps -o pid=PID,user=USER,time=CPU,"$CMD_FIELD"=COMMAND -p $PIDS
+
+# ps -o pid,user:20,time,cmd --width=120 -p $PIDS

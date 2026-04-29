@@ -3,5 +3,7 @@ set -e #exit on failed command
 set -u #fail on undefined variable
 set -x #print commands
 
-
-git add .; git commit -m .;git push
+git fetch origin
+# Reset to upsteam branch
+git reset --hard @{u}
+git clean -fd

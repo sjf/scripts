@@ -1,0 +1,61 @@
+#!/bin/bash
+set -eu
+
+. ~/scripts/git-utils
+
+DELETE_REMOTE=
+
+function delete_branch() {
+  branch_to_delete="$1"
+
+  if [ "$branch_to_delete" = "$MAIN" ]; then
+    echo Not deleting $MAIN branch
+    exit 1
+  fi
+
+  if [ "$CURRENT_BRANCH" = "$branch_to_delete" ]; then
+    # Cant delete the current branch
+    git checkout $MAIN
+  fi
+
+  DID_SOMETHING=
+  if branch_exists $branch_to_delete; then
+    echo "Deleting local branch '$branch_to_delete'..."
+    git branch -D "$branch_to_delete"
+    DID_SOMETHING=1
+  fi
+
+  if [[ -n "${DELETE_REMOTE:-}" ]] && remote_branch_exists $branch_to_delete; then
+    echo "Deleting remote branch '$branch_to_delete'..."
+    git push origin --delete "$branch_to_delete" || true
+    DID_SOMETHING=1
+  fi
+
+  if [[ -z $DID_SOMETHING ]]; then
+    echo Nothing to delete: $branch_to_delete
+  fi
+}
+
+while getopts ":a" opt; do
+  case "$opt" in
+    a)
+      DELETE_REMOTE=1
+      ;;
+    \?)
+      echo "Usage: $(basename "$0") [-a] [branch ...]"
+      echo "  -a    delete both local and remote branches"
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+if [ $# -eq 0 ]; then
+    # No arguments, use current_branch
+    set -- "$CURRENT_BRANCH"
+fi
+
+# Iterate over arguments (either provided or the current_branch)
+for branch in "$@"; do
+  delete_branch $branch
+done

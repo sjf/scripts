@@ -1,0 +1,28 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+#set -x #print commands
+
+. ~/oscripts/default-paths.sh
+
+stash_args=()
+while getopts ":m:" opt; do
+  case "$opt" in
+    m) stash_args+=("-m" "$OPTARG") ;;
+    :) echo "Option -$OPTARG requires an argument" >&2; exit 2 ;;
+    \?) echo "Usage: $(basename "$0") [-m message] [path ...]" >&2; exit 2 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+if [ "$#" -gt 0 ]; then
+  PATHS=("$@")
+else
+  PATHS=("${DEFAULT_PATHS[@]}")
+fi
+
+if [[ ${#stash_args[@]} -gt 0  ]]; then
+  git stash push --keep-index "${stash_args[@]}" -- "${PATHS[@]}" # --include-untracked remove for performance
+else
+  git stash push --keep-index -- "${PATHS[@]}" # --include-untracked remove for performance
+fi
