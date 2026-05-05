@@ -12,10 +12,12 @@ shift $((OPTIND - 1))
 
 source ~/scripts/git-utils
 
-if [ "$#" -gt 0 ]; then
+if (( $# > 0)); then
   FILES=("$@")
-else
+elif [[ -v DEFAULT_PATHS[0] ]]; then
   FILES=("${DEFAULT_PATHS[@]}")
+else
+  FILES=(".")
 fi
 
 # untracked (and optionally ignored) files

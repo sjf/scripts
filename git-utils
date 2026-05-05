@@ -6,7 +6,7 @@
 if [[ -f ~/oscripts/default-paths.sh ]]; then
   . ~/oscripts/default-paths.sh
 else
-  export DEFAULT_PATHS="."
+  unset DEFAULT_PATHS
 fi
 
 . ~/scripts/log-utils.sh

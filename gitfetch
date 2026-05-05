@@ -1,6 +1,6 @@
 #!/bin/bash
 set -u #fail on undefined variable
-set -x #print commands
+# set -x #print commands
 
 . ~/scripts/git-utils
 
