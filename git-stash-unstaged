@@ -3,7 +3,7 @@ set -e #exit on failed command
 set -u #fail on undefined variable
 #set -x #print commands
 
-. ~/oscripts/default-paths.sh
+. ~/oscripts/git-utils
 
 stash_args=()
 while getopts ":m:" opt; do

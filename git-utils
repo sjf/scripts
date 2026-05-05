@@ -3,7 +3,12 @@
 #set -u #fail on undefined variable
 #set -x #print commands
 
-[[ -f ~/oscripts/default-paths.sh ]] && . ~/oscripts/default-paths.sh
+if [[ -f ~/oscripts/default-paths.sh ]]; then
+  . ~/oscripts/default-paths.sh
+else
+  export DEFAULT_PATHS="."
+fi
+
 . ~/scripts/log-utils.sh
 
 CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || true)"
