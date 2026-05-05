@@ -43,6 +43,8 @@ BODY=${POSITIONAL[1]:-$(git log -1 --pretty=format:'%b')}
 git push
 
 gh pr create --title "$TITLE" --body "$BODY" --head "$(git branch --show-current)" --base "$BASE"
-[[ "$BASE" == "$MAIN" ]] && gh pr merge --auto --squash
+if [[ "$BASE" == "$MAIN" && ]]; then
+  gh pr merge --auto --squash
+fi
 
 prr

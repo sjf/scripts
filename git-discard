@@ -10,7 +10,7 @@ while getopts ":a" opt; do
 done
 shift $((OPTIND - 1))
 
-. ~/oscripts/default-paths.sh
+source ~/scripts/git-utils
 
 if [ "$#" -gt 0 ]; then
   FILES=("$@")
