@@ -24,20 +24,25 @@ function dattach(){
   CONTAINER=`service_to_container $SERVICE`
   shift
 
-  if [ -z "$1" ]; then
-    CMD=/bin/bash
-  else
-    CMD="$@"
+  DOCKER_USER=root
+  if [ -n "$1" ]; then
+    DOCKER_USER=$1
+  fi
+  shift
+
+  CMD=/bin/bash
+  if [ -n "$1" ]; then
+    CMD="$@" # rest of args
   fi
 
   if [ $CMD != '/bin/sh' ]; then
     # Fall back to sh if there is no bash
     set -x
-    docker exec -u root -it $CONTAINER $CMD || docker exec -u root -it $CONTAINER /bin/sh
+    docker exec -u $DOCKER_USER -it $CONTAINER $CMD || docker exec -u $DOCKER_USER -it $CONTAINER /bin/sh
     set +x
   else
     set -x
-    docker exec -u root -it $CONTAINER $CMD
+    docker exec -u $DOCKER_USER -it $CONTAINER $CMD
     set +x
   fi
 }

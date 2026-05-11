@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e #exit on failed command
 set -u #fail on undefined variable
 #set -x #print commands
 
-. ~/oscripts/git-utils
+. ~/scripts/git-utils
 
 stash_args=()
 while getopts ":m:" opt; do
@@ -15,10 +15,12 @@ while getopts ":m:" opt; do
 done
 shift $((OPTIND - 1))
 
-if [ "$#" -gt 0 ]; then
+if (( $# > 0)); then
   PATHS=("$@")
-else
+elif [[ -v DEFAULT_PATHS[0] ]]; then
   PATHS=("${DEFAULT_PATHS[@]}")
+else
+  PATHS=(".")
 fi
 
 if [[ ${#stash_args[@]} -gt 0  ]]; then
