@@ -10,14 +10,10 @@ if [[ -z "$REPO" ]]; then
   exit 1
 fi
 
-if [[ -n "${GS_FILES_TO_RESTORE:-}" ]]; then
-    files_to_restore=()
-    while IFS= read -r file; do
-      [[ -z "$file" ]] && continue
-      files_to_restore+=("$file")
-    done <<< "${GS_FILES_TO_RESTORE}"
+files_to_ignore=(extensions/canvas/src/host/a2ui/.bundle.hash pnpm-lock.yaml)
 
-    status_output=$(git status --porcelain -- "${files_to_restore[@]}")
+if (( ${#files_to_ignore[@]} > 0 )); then
+    status_output=$(git status --porcelain -- "${files_to_ignore[@]}")
 
     while IFS= read -r line; do
       [[ -z "$line" ]] && continue
@@ -48,4 +44,3 @@ if [[ "$REPO" == "${MONOREPO:-}" ]]; then
 else
   git status
 fi
-
