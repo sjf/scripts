@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mountpoint="${1:-$HOME/discord}"
+
+cd "$HOME"
+
+echo "Killing processes using $mountpoint..."
+pids="$(sudo lsof -t +D "$mountpoint" 2>/dev/null || true)"
+
+if [[ -n "$pids" ]]; then
+  echo "$pids" | xargs sudo kill -TERM
+  sleep 2
+
+  remaining="$(sudo lsof -t +D "$mountpoint" 2>/dev/null || true)"
+  if [[ -n "$remaining" ]]; then
+    echo "$remaining" | xargs sudo kill -KILL
+  fi
+fi
+
+echo "Restarting Finder..."
+killall Finder 2>/dev/null || true
+
+echo "Force unmounting..."
+diskutil unmount force "$mountpoint" || sudo umount -f "$mountpoint"
+
+echo "Done."

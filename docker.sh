@@ -35,16 +35,16 @@ function dattach(){
     CMD="$@" # rest of args
   fi
 
-  if [ $CMD != '/bin/sh' ]; then
-    # Fall back to sh if there is no bash
-    set -x
-    docker exec -u $DOCKER_USER -it $CONTAINER $CMD || docker exec -u $DOCKER_USER -it $CONTAINER /bin/sh
-    set +x
-  else
-    set -x
-    docker exec -u $DOCKER_USER -it $CONTAINER $CMD
-    set +x
+  if [ "$CMD" = '/bin/bash' ]; then
+    # Probe for bash before invoking it; otherwise a non-zero exit from
+    # the user's interactive bash session would falsely trigger the sh fallback.
+    if ! docker exec -u $DOCKER_USER $CONTAINER test -x /bin/bash 2>/dev/null; then
+      CMD=/bin/sh
+    fi
   fi
+  set -x
+  docker exec -u $DOCKER_USER -it $CONTAINER $CMD
+  set +x
 }
 
 function drebuild(){
