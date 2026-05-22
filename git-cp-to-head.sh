@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REMOTE="origin"
-MAIN="master"
-UPSTREAM="$REMOTE/$MAIN"
+REMOTE="${REMOTE:-origin}"
 
-. ~/scripts/log-utils.sh
+. ~/scripts/git-utils
+
+UPSTREAM="$REMOTE/$MAIN"
 
 usage() {
   cat <<EOF

@@ -10,7 +10,7 @@ if [[ -z "$REPO" ]]; then
   exit 1
 fi
 
-files_to_ignore=(extensions/canvas/src/host/a2ui/.bundle.hash pnpm-lock.yaml)
+files_to_ignore=(extensions/canvas/src/host/a2ui/.bundle.hash pnpm-lock.yaml .pnpm-store)
 
 if (( ${#files_to_ignore[@]} > 0 )); then
     status_output=$(git status --porcelain -- "${files_to_ignore[@]}")
@@ -23,16 +23,16 @@ if (( ${#files_to_ignore[@]} > 0 )); then
 
       # Remove new files in this allowlist (both untracked and staged-added).
       if [[ "$status" == "??" ]]; then
-        rm -f -- "$file"
+        rm -rf -- "$file"
         continue
       fi
       if [[ "${status:0:1}" == "A" ]]; then
-        git rm -f -- "$file"
+        git rm -rf -- "$file"
         continue
       fi
 
       # Restore only unstaged working-tree changes.
-      if [[ "${status:1:1}" != " " ]] && [[ -f "$file" ]]; then
+      if [[ "${status:1:1}" != " " ]]; then
         git restore -- "$file"
       fi
     done <<< "$status_output"
