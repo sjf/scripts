@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eu
 
-DOMAIN="oak.sjf.io"
+DOMAIN=$1
 
 # Get external IP address
 EXT_IP=$(curl -s ifconfig.me)  
