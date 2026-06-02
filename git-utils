@@ -16,7 +16,7 @@ CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || true)"
 REPO=$(git remote get-url origin 2>/dev/null | sed 's/.*\///' | sed 's/\.git$//')
 
 case "$REPO" in
-  sjf|"$MONOREPO")
+  sjf|"${MONOREPO:-}")
     MAIN=master
     ;;
   *)
