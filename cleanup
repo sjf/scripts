@@ -1,0 +1,20 @@
+#!/bin/bash
+set -e #exit on failed command
+set -u #fail on undefined variable
+set -x #print commands
+
+df -h
+
+brew cleanup --prune=all
+
+#docker system prune -a --volumes
+
+docker builder prune -f
+
+npm cache clean --force
+
+rm -rf ~/Library/Caches/pnpm
+
+rm -rf ~/.Trash/*
+
+df -h
