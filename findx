@@ -1,0 +1,50 @@
+#!/bin/bash
+set -u
+
+cmd=$(basename "$0")
+
+# findfiles takes no NAME pattern; every other variant takes one as $1.
+case "$cmd" in
+  findfiles) ;;
+  *)
+    if [ $# -eq 0 ]; then
+      echo "usage: $cmd NAME [dir ...]" >&2
+      exit 1
+    fi
+    name=$1; shift
+    ;;
+esac
+
+case "$cmd" in
+  finddir)    match=( -type d -name "$name" ) ;;
+  findext)    match=( -type f -name "*.$name" ) ;;
+  findfile)   match=( -type f -name "$name" ) ;;
+  findfiles)  match=( -type f ) ;;
+  findrfile)  match=( -type f -name "*$name*" ) ;;
+  findrifile) match=( -type f -iname "*$name*" ) ;;
+  *) echo "$cmd: invoke via finddir/findext/findfile/findfiles/findrfile/findrifile" >&2; exit 1 ;;
+esac
+
+# Prune directories listed (one name per line) in ~/scripts/ignore_dirs.
+ignore_file="$HOME/scripts/ignore_dirs"
+prune=()
+if [ -f "$ignore_file" ]; then
+  while IFS= read -r d || [ -n "$d" ]; do
+    [ -z "$d" ] && continue
+    if [ ${#prune[@]} -eq 0 ]; then
+      prune=( -name "$d" )
+    else
+      prune+=( -o -name "$d" )
+    fi
+  done < "$ignore_file"
+fi
+
+[ $# -eq 0 ] && set -- .
+
+for dir in "$@"; do
+  if [ ${#prune[@]} -gt 0 ]; then
+    find "$dir" -type d \( "${prune[@]}" \) -prune -o "${match[@]}" -print
+  else
+    find "$dir" "${match[@]}"
+  fi
+done
