@@ -2,7 +2,6 @@
 
 import os, sys
 import http.server
-from http.server import HTTPServer, BaseHTTPRequestHandler
 import socketserver
 
 if len(sys.argv) > 1:
@@ -10,7 +9,17 @@ if len(sys.argv) > 1:
 else:
   port = int(os.environ.get('PORT', '8081'))
 
+if len(sys.argv) > 2:
+  host = sys.argv[2]
+else:
+  host = os.environ.get('HOST', '127.0.0.1')
+
 Handler = http.server.SimpleHTTPRequestHandler
+
+
+class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+  allow_reuse_address = True
+  daemon_threads = True
 
 Handler.extensions_map={
   '.manifest': 'text/cache-manifest',
@@ -25,9 +34,9 @@ Handler.extensions_map={
   '': 'application/octet-stream', # Default
     }
 
-httpd = socketserver.TCPServer(("", port), Handler)
+httpd = ThreadingTCPServer((host, port), Handler)
 
-print("serving at port", port)
+print("serving at", host, "port", port)
 httpd.serve_forever()
 
 # command line version:
