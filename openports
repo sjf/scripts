@@ -4,7 +4,20 @@ set -u #fail on undefined variable
 # set -x #print commands
 
 if is_mac; then
-  echo This doesnt work on mac
-  exit 1
+  lsof -nP -iTCP -sTCP:LISTEN -F pcLn 2>/dev/null | awk '
+    BEGIN { printf "%-20s %-10s %-8s %s\n", "COMMAND", "USER", "PID", "PORT" }
+    /^p/ { pid = substr($0, 2) }
+    /^c/ { command = substr($0, 2) }
+    /^L/ { user = substr($0, 2) }
+    /^n/ {
+      name = substr($0, 2)
+      if (name ~ /:[0-9]+$/ && name !~ /^127\.0\.0\.1:/ && name !~ /^\[::1\]:/) {
+        port = name
+        sub(/^.*:/, "", port)
+        printf "%-20s %-10s %-8s %s\n", command, user, pid, port
+      }
+    }
+  '
+  exit
 fi
 netstat -ntlp 2>/dev/null|egrep '(0\.0\.0\.0:[0-9]|:::[0-9])'
