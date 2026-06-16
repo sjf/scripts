@@ -16,8 +16,11 @@
     <true/>
 
     <key>KeepAlive</key>
-    <true/>
+    <dict>
+      <key>NetworkState</key>
+      <true/>
+      <key>SuccessfulExit</key>
+      <false/>
+    </dict>
   </dict>
 </plist>
-
-launchctl load ~/Library/LaunchAgents/com.sjf.sublime_server.plist

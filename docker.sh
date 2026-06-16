@@ -24,22 +24,27 @@ function dattach(){
   CONTAINER=`service_to_container $SERVICE`
   shift
 
-  if [ -z "$1" ]; then
-    CMD=/bin/bash
-  else
-    CMD="$@"
+  DOCKER_USER=root
+  if [ -n "$1" ]; then
+    DOCKER_USER=$1
+  fi
+  shift
+
+  CMD=/bin/bash
+  if [ -n "$1" ]; then
+    CMD="$@" # rest of args
   fi
 
-  if [ $CMD != '/bin/sh' ]; then
-    # Fall back to sh if there is no bash
-    set -x
-    docker exec -u root -it $CONTAINER $CMD || docker exec -u root -it $CONTAINER /bin/sh
-    set +x
-  else
-    set -x
-    docker exec -u root -it $CONTAINER $CMD
-    set +x
+  if [ "$CMD" = '/bin/bash' ]; then
+    # Probe for bash before invoking it; otherwise a non-zero exit from
+    # the user's interactive bash session would falsely trigger the sh fallback.
+    if ! docker exec -u $DOCKER_USER $CONTAINER test -x /bin/bash 2>/dev/null; then
+      CMD=/bin/sh
+    fi
   fi
+  set -x
+  docker exec -u $DOCKER_USER -it $CONTAINER $CMD
+  set +x
 }
 
 function drebuild(){

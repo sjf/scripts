@@ -1,6 +1,6 @@
 #!/bin/bash
 set -u #fail on undefined variable
-set -x #print commands
+# set -x #print commands
 
 . ~/scripts/git-utils
 
@@ -8,6 +8,21 @@ UPDATED=no
 
 # # just drop changes to this file because it is useless and always getting auto-updated
 # [[ -f package-lock.json ]] && git restore package-lock.json
+
+# drop changes to these files because they are auto-generated
+RESTORE_FILES=(
+  pnpm-lock.yaml
+  extensions/canvas/src/host/a2ui/.bundle.hash
+)
+for f in "${RESTORE_FILES[@]}"; do
+  if [[ -f $f ]]; then
+    if git ls-files --error-unmatch "$f" &>/dev/null; then
+      git restore "$f"
+    else
+      rm -f "$f"
+    fi
+  fi
+done
 
 set -e #exit on failed command
 

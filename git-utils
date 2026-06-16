@@ -1,9 +1,14 @@
 #!/bin/bash
 #set -e #exit on failed command
-set -u #fail on undefined variable
+#set -u #fail on undefined variable
 #set -x #print commands
 
-[[ -f ~/oscripts/default-paths.sh ]] && . ~/oscripts/default-paths.sh
+if [[ -f ~/oscripts/default-paths.sh ]]; then
+  . ~/oscripts/default-paths.sh
+else
+  unset DEFAULT_PATHS
+fi
+
 . ~/scripts/log-utils.sh
 
 CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || true)"
@@ -11,7 +16,7 @@ CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || true)"
 REPO=$(git remote get-url origin 2>/dev/null | sed 's/.*\///' | sed 's/\.git$//')
 
 case "$REPO" in
-  sjf|"$MONOREPO")
+  sjf|"${MONOREPO:-}")
     MAIN=master
     ;;
   *)

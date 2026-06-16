@@ -10,14 +10,10 @@ if [[ -z "$REPO" ]]; then
   exit 1
 fi
 
-if [[ -n "${GS_FILES_TO_RESTORE:-}" ]]; then
-    files_to_restore=()
-    while IFS= read -r file; do
-      [[ -z "$file" ]] && continue
-      files_to_restore+=("$file")
-    done <<< "${GS_FILES_TO_RESTORE}"
+files_to_ignore=(extensions/canvas/src/host/a2ui/.bundle.hash pnpm-lock.yaml .pnpm-store)
 
-    status_output=$(git status --porcelain -- "${files_to_restore[@]}")
+if (( ${#files_to_ignore[@]} > 0 )); then
+    status_output=$(git status --porcelain -- "${files_to_ignore[@]}")
 
     while IFS= read -r line; do
       [[ -z "$line" ]] && continue
@@ -27,16 +23,16 @@ if [[ -n "${GS_FILES_TO_RESTORE:-}" ]]; then
 
       # Remove new files in this allowlist (both untracked and staged-added).
       if [[ "$status" == "??" ]]; then
-        rm -f -- "$file"
+        rm -rf -- "$file"
         continue
       fi
       if [[ "${status:0:1}" == "A" ]]; then
-        git rm -f -- "$file"
+        git rm -rf -- "$file"
         continue
       fi
 
       # Restore only unstaged working-tree changes.
-      if [[ "${status:1:1}" != " " ]] && [[ -f "$file" ]]; then
+      if [[ "${status:1:1}" != " " ]]; then
         git restore -- "$file"
       fi
     done <<< "$status_output"
@@ -48,4 +44,3 @@ if [[ "$REPO" == "${MONOREPO:-}" ]]; then
 else
   git status
 fi
-

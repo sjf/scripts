@@ -72,7 +72,7 @@ def open_sublime(f):
   subprocess.run(f"/Users/sjf/scripts/sublime {f}", shell=True, check=True)
 
 def start_tunnel(local_port, remote_host, remote_port):
-  cmd = f"ssh -o ExitOnForwardFailure=yes  -N -R 127.0.0.1:{remote_port}:127.0.0.1:{local_port} {remote_host}"
+  cmd = f"ssh -o ExitOnForwardFailure=yes -o ServerAliveInterval=1 -N -R 127.0.0.1:{remote_port}:127.0.0.1:{local_port} {remote_host}"
   print(cmd)
   try:
     subprocess.run(cmd, shell=True, check=True)

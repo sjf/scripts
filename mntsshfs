@@ -1,17 +1,24 @@
 #!/bin/bash
-set -u
+set -ue
 
 # sshtunnel.sh &
 # sublime_server.py &
 
-umount ~/scripts 2>/dev/null
-umount ~/sjf1 2>/dev/null
-umount ~/mb 2>/dev/null
-umount ~/sbb 2>/dev/null
-umount ~/sbb.local/ 2>/dev/null
+mounts=(
+    # "box:/home/sjf/scripts     $HOME/scripts1"
+    # "box:/home/sjf/sjf         $HOME/sjf1"
+    # "box:/home/sjf/librameta   $HOME/box2"
+    # "box:/home/sjf/sbb         $HOME/sbb"
+    # "beekey.buzz:/home/sjf/sbb $HOME/sbb.local"
+    "box:/home/sjf/discord     $HOME/discord"
+)
 
-sshfs box:/home/sjf/scripts ~/scripts1  -o volname=scripts1,reconnect,ServerAliveInterval=1
-sshfs box:/home/sjf/sjf     ~/sjf1      -o volname=sjf1,reconnect,ServerAliveInterval=1
-sshfs box:/home/sjf/mb      ~/box2      -o volname=box2,reconnect,ServerAliveInterval=1
-sshfs box:/home/sjf/sbb     ~/sbb       -o volname=sbb,reconnect,ServerAliveInterval=1
-sshfs beekey.buzz:/home/sjf/sbb ~/sbb.local/ -o volname=beekey,reconnect,ServerAliveInterval=1
+for entry in "${mounts[@]}"; do
+    read -r src dest <<< "$entry"
+    dir=$(basename $dest)
+    if [[ ! -d "$dest" ]]; then
+      mkdir "$dest"
+    fi
+    umount "$dest" 2>/dev/null || true
+    sshfs "$src" "$dest" -o "volname=$dir,ServerAliveInterval=15,reconnect,follow_symlinks,defer_permissions,noappledouble,Compression=no,kill_on_unmount" && echo Mounted $src
+done
