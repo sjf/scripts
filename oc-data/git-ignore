@@ -1,0 +1,22 @@
+# Real secrets — never commit. .env.example IS tracked as the template.
+.env
+slack.env
+
+# Local test state from deploy/local-test.sh (renders openclaw.json5
+# with real tokens — never commit).
+deploy/test-state/
+
+# Rendered Prometheus config (envsubst output from prometheus.yml.tmpl).
+deploy/prometheus.yml
+
+# Runtime state recorded by deploy.sh on the VPS; never present locally
+# but ignored defensively in case the deploy/ tree is rsynced back.
+deploy/.deployed-sha
+
+# macOS
+.DS_Store
+.claude
+state/
+openclaw
+codex
+state.off/

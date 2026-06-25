@@ -1,0 +1,544 @@
+#!/usr/bin/env bash
+# Bring up the bot locally on Docker Desktop / OrbStack / Colima for
+# end-to-end testing before pushing to the VPS. Same compose files as
+# production; only the state directory is moved under deploy/state
+# so we don't need root or /opt access.
+#
+# Prereqs:
+#   - Docker running locally
+#   - .env filled in at repo root (cp .env.example .env first)
+#   - openclaw repo cloned at ../openclaw (already done by the earlier
+#     `git clone` you ran for inspection)
+#
+# Usage:
+#   oc init       # clone/update ignored local repos and copy templates
+#   oc up         # build + start; tail logs in Docker mode
+#   oc configure  # render config into the state dir
+#   oc down       # stop and remove containers
+#   oc restart    # build (using cache) + restart
+#   oc logs       # tail openclaw logs
+#   oc exec       # drop into the openclaw-cli container
+#   oc openclaw ... # run an openclaw subcommand inside the gateway container
+#   oc dream      # force a dreaming run immediately (normally 3am)
+
+set -euo pipefail
+
+ROOT_DIR="$(pwd)"
+ENV_FILE="${ROOT_DIR}/.env"
+OC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OC_DATA_DIR="${OC_DIR}/oc-data"
+REQUESTED_CMD="${1:-gateway}"
+
+if [[ "${REQUESTED_CMD}" != "init" && ! -f "${ENV_FILE}" ]]; then
+  echo ".env missing. Run: cp ${ROOT_DIR}/.env.example ${ENV_FILE} and fill it in." >&2
+  exit 1
+fi
+
+if [[ "${REQUESTED_CMD}" != "init" ]]; then
+  set -a; source "${ENV_FILE}"; set +a
+fi
+
+# Codex may launch this wrapper with its own SQLite state override. Let
+# OpenClaw's Codex plugin bind the embedded app-server to per-agent CODEX_HOME.
+unset CODEX_SQLITE_HOME
+
+if [[ "${REQUESTED_CMD}" != "init" && -n "${OC_DOCKER_HOST:-}" && "$(hostname)" != "${OC_DOCKER_HOST}" ]]; then
+  echo "** Switching to remote host **"
+  REMOTE_DIR="${OC_REMOTE_DIR:-$(basename "${ROOT_DIR}")}"
+  if [[ "${1:-}" != "build" ]]; then
+    exec ssh -t "${OC_DOCKER_HOST}" "cd ${REMOTE_DIR} && ~/scripts/oc $*"
+  else
+    shift
+    exec ssh -t "${OC_DOCKER_HOST}" "cd ${REMOTE_DIR} && ~/scripts/oc compose $*"
+  fi
+fi
+
+export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-${ROOT_DIR}/state}"
+export WORKSPACE_DIR="${OPENCLAW_STATE_DIR}/workspace"
+
+DEPLOY_DIR="${DEPLOY_DIR:-${ROOT_DIR}/deploy}"
+OPENCLAW_REPO_DIR="${OPENCLAW_REPO_DIR:-${ROOT_DIR}/openclaw}"
+
+export PORT="${PORT:-18789}"
+export GATEWAY_TOKEN="${GATEWAY_TOKEN:-}"
+export OPENCLAW_TZ=${OPENCLAW_TZ:-America/Los_Angeles}
+
+MODELS="${MODELS:-openai/gpt-5.5}"
+export IMAGE_MODEL="${IMAGE_MODEL:-openai/gpt-image-2}"
+
+function init_project() {
+  if [[ $# -gt 0 ]]; then
+    echo "Usage: OC_OPENCLAW_VERSION=<tag-or-ref> $0 init" >&2
+    exit 2
+  fi
+
+  local project_dir="${ROOT_DIR}"
+  local exclude_file=""
+  local openclaw_version="${OC_OPENCLAW_VERSION:-}"
+
+  if [[ ! -d "${OC_DATA_DIR}" ]]; then
+    echo "Missing oc data directory: ${OC_DATA_DIR}" >&2
+    exit 1
+  fi
+
+  local repos=(
+    "openclaw https://github.com/openclaw/openclaw.git"
+    "codex    https://github.com/openai/codex.git"
+  )
+
+  local entry name url dest branch
+  for entry in "${repos[@]}"; do
+    read -r name url <<<"${entry}"
+    dest="${project_dir}/${name}"
+    if [[ -d "${dest}/.git" ]]; then
+      if [[ "${name}" == "openclaw" && -n "${openclaw_version}" ]]; then
+        echo "** ${name} fetching tags"
+        git -C "${dest}" fetch --tags origin
+        echo "** ${name} checking out ${openclaw_version}"
+        git -C "${dest}" checkout "${openclaw_version}"
+      else
+        branch="$(git -C "${dest}" symbolic-ref --short -q HEAD || echo "")"
+        if [[ "${branch}" == "main" ]]; then
+          echo "** ${name} pulling latest main"
+          git -C "${dest}" pull --ff-only origin main
+        else
+          echo "==> ${name} exists but is on '${branch:-detached HEAD}', skipping pull"
+        fi
+      fi
+    else
+      echo "==> Cloning ${url} into ${dest}"
+      git clone "${url}" "${dest}"
+      if [[ "${name}" == "openclaw" && -n "${openclaw_version}" ]]; then
+        echo "** ${name} checking out ${openclaw_version}"
+        git -C "${dest}" checkout "${openclaw_version}"
+      fi
+    fi
+
+    if [[ -z "${exclude_file}" ]]; then
+      if git -C "${project_dir}" rev-parse --git-dir >/dev/null 2>&1; then
+        exclude_file="$(git -C "${project_dir}" rev-parse --git-path info/exclude)"
+      else
+        echo "==> ${project_dir} is not a git repo; skipping .git/info/exclude updates"
+      fi
+    fi
+
+    if [[ -n "${exclude_file}" ]]; then
+      if [[ -f "${exclude_file}" ]] && grep -qxF "${name}/" "${exclude_file}"; then
+        :
+      else
+        echo "==> Adding ${name}/ to .git/info/exclude"
+        mkdir -p "$(dirname "${exclude_file}")"
+        printf '%s/\n' "${name}" >>"${exclude_file}"
+      fi
+    fi
+  done
+
+  local agents="${project_dir}/AGENTS.md"
+  local agents_target="${OC_DATA_DIR}/AGENTS.md"
+  if [[ -L "${agents}" ]]; then
+    if [[ "$(readlink "${agents}")" != "${agents_target}" ]]; then
+      ln -sfn "${agents_target}" "${agents}"
+    fi
+  elif [[ ! -e "${agents}" ]]; then
+    ln -s "${agents_target}" "${agents}"
+  fi
+  cp -v "${OC_DATA_DIR}/git-ignore" "${project_dir}/.gitignore"
+  cp -v "${OC_DATA_DIR}/.env.example" "${project_dir}"
+
+  mkdir -p "${project_dir}/state/workspace"
+  echo Done
+}
+
+function docker_mode() {
+  [[ -n "${OC_DOCKER_HOST:-}" ]]
+}
+
+function compose() {
+  docker compose \
+    --project-directory "${DEPLOY_DIR}" \
+    -f "${OPENCLAW_REPO_DIR}/docker-compose.yml" \
+    -f "${DEPLOY_DIR}/docker-compose.override.yml" \
+    "$@"
+}
+
+function print_gateway_info() {
+  gateway_url="https://${OC_DOCKER_HOST}"
+  if [[ -n "${GATEWAY_TOKEN}" ]]; then
+    gateway_url="${gateway_url}?token=${GATEWAY_TOKEN}"
+  fi
+
+  echo
+  echo "    Gateway:  ${gateway_url}"
+  echo "    Tail:     bash $0 logs"
+  echo "    Stop:     bash $0 down"
+  echo
+}
+
+function docker_start() {
+  if ! docker_mode; then
+    echo "==> Not in docker mode " >&2
+    exit 1
+  fi
+
+  configure
+
+  echo "==> Building images (first run takes 5-15 min: pnpm install + build)"
+  compose build --pull
+
+  echo "==> Starting stack"
+  compose up -d --remove-orphans
+
+  echo "==> Restarting gateway to load rendered config"
+  compose restart openclaw-gateway
+
+  print_gateway_info
+}
+
+function docker_restart_only() {
+  if ! docker_mode; then
+    echo "==> Not in docker mode " >&2
+    exit 1
+  fi
+
+  configure
+
+  echo "==> Restarting gateway"
+  if ! compose restart openclaw-gateway; then
+    echo "==> Gateway restart failed; starting stack without rebuilding images"
+    compose up -d --remove-orphans
+  fi
+
+  print_gateway_info
+}
+
+function start() {
+  if docker_mode; then
+    docker_start
+    logs
+  else
+    build
+    echo "==> Starting local gateway"
+    run_openclaw gateway run
+  fi
+}
+
+function configure() {
+  if docker_mode; then
+    export CONTROL_UI_ROOT="/app/dist/control-ui"
+  else
+    export CONTROL_UI_ROOT="${OPENCLAW_REPO_DIR}/dist/control-ui"
+  fi
+
+  required_vars=()
+  if docker_mode; then
+    required_vars+=(GRAFANA_HOST GRAFANA_ADMIN_PASSWORD)
+  fi
+  for v in "${required_vars[@]}"; do
+    if [[ -z "${!v:-}" ]]; then
+      echo "${v} is not set in ${ENV_FILE}" >&2
+      exit 1
+    fi
+  done
+
+  if [[ ! -f "${DEPLOY_DIR}/openclaw.json" ]]; then
+    mkdir -p "${OPENCLAW_STATE_DIR}" "${WORKSPACE_DIR}"
+    if [[ ! -f "${OPENCLAW_STATE_DIR}/openclaw.json" ]]; then
+      echo "==> No deploy/openclaw.json template or onboarding config found; creating baseline config"
+      run_openclaw setup --non-interactive --accept-risk --skip-health --workspace "${WORKSPACE_DIR}"
+    else
+      echo "==> Reusing onboarding config at ${OPENCLAW_STATE_DIR}/openclaw.json"
+    fi
+    return
+  fi
+
+  IFS=',' read -ra _allowed_hosts_raw <<< "${ALLOWED_HOSTS:-}"
+  _allowed_origins=""
+  for h in "${_allowed_hosts_raw[@]}"; do
+    h="${h# }"; h="${h% }"; h="${h%.}"
+    [[ -z "$h" ]] && continue
+    _allowed_origins+="${_allowed_origins:+ }\"https://${h}\","
+  done
+  export OPENCLAW_ALLOWED_ORIGINS="${_allowed_origins}"
+
+  # Split MODELS (comma-separated) into the primary +
+  # fallbacks form expected by openclaw.json: first entry becomes
+  # PRIMARY_MODEL, the rest become a JSON array string in
+  # FALLBACK_MODELS (e.g. ["openai/gpt-5.5","ollama/foo"]).
+  # Whitespace around commas is stripped.
+  IFS=',' read -ra _models_raw <<< "${MODELS}"
+  declare -a _models=()
+  for m in "${_models_raw[@]}"; do
+    m="${m# }"; m="${m% }"
+    [[ -n "$m" ]] && _models+=("$m")
+  done
+  if [[ ${#_models[@]} -eq 0 ]]; then
+    echo "MODELS in ${DEPLOY_DIR}/.env has no entries" >&2
+    exit 1
+  fi
+  export PRIMARY_MODEL="${_models[0]}"
+  _fallbacks_json="["
+  for i in "${!_models[@]}"; do
+    [[ $i -eq 0 ]] && continue
+    [[ $i -gt 1 ]] && _fallbacks_json+=", "
+    _fallbacks_json+="\"${_models[$i]}\""
+  done
+  _fallbacks_json+="]"
+  export FALLBACK_MODELS="${_fallbacks_json}"
+
+  if [[ -z "${DISCORD_BOT_TOKEN:-}" ]]; then
+    echo "==> DISCORD_BOT_TOKEN unset; rendering with channels.discord.enabled=false"
+    export DISCORD_ENABLED=false
+  else
+    export DISCORD_ENABLED=true
+  fi
+
+  if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_OWNER_ID:-}" ]]; then
+    echo "==> TELEGRAM_BOT_TOKEN or TELEGRAM_OWNER_ID unset; rendering with channels.telegram.enabled=false"
+    export TELEGRAM_ENABLED=false
+  else
+    export TELEGRAM_ENABLED=true
+  fi
+
+  export DISCORD_GUILD_ID="${DISCORD_GUILD_ID:-0}"
+
+  IFS=',' read -ra _admins_raw <<< "${DISCORD_ADMINS:-}"
+  _owner_allow=""
+  _user_allow=""
+  for a in "${_admins_raw[@]}"; do
+    a="${a# }"; a="${a% }"
+    [[ -z "$a" ]] && continue
+    _owner_allow+="${_owner_allow:+, }\"discord:${a}\""
+    _user_allow+="${_user_allow:+, }\"user:${a}\""
+  done
+  export DISCORD_ADMINS_OWNER_ALLOW="${_owner_allow}"
+  export DISCORD_ADMINS_USER_ALLOW="${_user_allow}"
+
+  # Initialize the state dir on first run. We don't chown to uid 1000
+  # here — Docker Desktop on macOS handles uid mapping via the VM, and on
+  # Linux you may want to run `sudo chown -R 1000:1000 ${OPENCLAW_STATE_DIR}` if the
+  # container reports permission errors writing to /home/node/.openclaw.
+
+  # Always re-render openclaw.json so toggling DISCORD_ENABLED (or any
+  # .env edit) takes effect on the next `up`.
+  #
+  # Two-stage render: envsubst fills in ${...} placeholders, then `json5`
+  # strips JSON5 comments / trailing commas / unquoted keys so the result
+  # is plain JSON. Plain JSON in state/ avoids the openclaw config CLI's
+  # >50% size-drop safety check (which would block any later `config set`
+  # / `config patch` because comment-stripping is a 70%+ shrink).
+
+  echo "==> Rendering openclaw.json (DISCORD_ENABLED=${DISCORD_ENABLED}, TELEGRAM_ENABLED=${TELEGRAM_ENABLED}) into ${OPENCLAW_STATE_DIR}/"
+  json5_bin="${OPENCLAW_REPO_DIR}/node_modules/.bin/json5"
+  if [[ -x "${json5_bin}" ]]; then
+    envsubst < "${DEPLOY_DIR}/openclaw.json" | "${json5_bin}" -s 2 -o "${OPENCLAW_STATE_DIR}/openclaw.json"
+  else
+    envsubst < "${DEPLOY_DIR}/openclaw.json" | npx -y json5 -s 2 -o "${OPENCLAW_STATE_DIR}/openclaw.json"
+  fi
+
+  if docker_mode; then
+    echo "==> Rendering prometheus.yml from prometheus.yml.tmpl"
+    envsubst '${GATEWAY_TOKEN}' < "${DEPLOY_DIR}/prometheus.yml.tmpl" > "${DEPLOY_DIR}/prometheus.yml"
+  fi
+  # Re-sync SOUL.md (persona) and AGENTS.md (hard security rules) from
+  # the deploy tree on every up.
+  for f in SOUL.md AGENTS.md HEARTBEAT.md; do
+    if [[ -f "${DEPLOY_DIR}/${f}" ]]; then
+      cp -L "${DEPLOY_DIR}/${f}" "${WORKSPACE_DIR}/${f}"
+    fi
+  done
+}
+
+function down() {
+  if docker_mode; then
+    compose down --remove-orphans
+  else
+    echo "Local mode runs the gateway in the foreground; stop it with Ctrl-C."
+  fi
+}
+
+function logs() {
+  if ! docker_mode; then
+    echo "Local mode writes gateway logs to /tmp/openclaw/."
+    return
+  fi
+  while true; do
+    compose logs -f openclaw-gateway || true
+    echo "==> logs disconnected; reconnecting in 2s (Ctrl-C to exit)"
+    sleep 2
+  done
+}
+
+function bootstrap() {
+  (
+    cd "${OPENCLAW_REPO_DIR}"
+    set -x
+    pnpm install
+    pnpm build
+    pnpm ui:build
+  )
+}
+
+function build() {
+  if docker_mode; then
+    echo "==> Use compose not build for docker images " >&2
+    exit 1
+  fi
+  if [[ ! -d "${OPENCLAW_REPO_DIR}/dist" ]]; then
+    echo "==> No prior build detected, bootstrapping openclaw..."
+    bootstrap
+  fi
+  configure
+  (cd "${OPENCLAW_REPO_DIR}" && pnpm openclaw --version)
+}
+
+function run_openclaw() {
+  if docker_mode; then
+    compose exec -it openclaw-gateway openclaw "$@"
+    return
+  fi
+
+  if [[ ! -d "${OPENCLAW_REPO_DIR}/dist" ]]; then
+    echo "==> No prior build detected. Run '$0 build' first." >&2
+    exit 1
+  fi
+  # configure
+  (cd "${OPENCLAW_REPO_DIR}" && node openclaw.mjs "$@")
+}
+
+function watch() {
+  if docker_mode; then
+    echo "'watch' is only available in local mode. Use 'logs' for Docker mode." >&2
+    exit 1
+  fi
+  if [[ ! -d "${OPENCLAW_REPO_DIR}/dist" ]]; then
+    echo "==> No prior build detected. Run '$0 build' first." >&2
+    exit 1
+  fi
+  configure
+  (cd "${OPENCLAW_REPO_DIR}" && pnpm gateway:watch:raw "$@")
+}
+
+function reset() {
+  if docker_mode; then
+    echo "'reset' is only available in local mode." >&2
+    exit 1
+  fi
+  rm -rf "${OPENCLAW_STATE_DIR}"
+  mkdir -p "${OPENCLAW_STATE_DIR}"
+  echo "==> Wiped ${OPENCLAW_STATE_DIR}"
+}
+
+function onboard() {
+  if docker_mode; then
+    echo "'onboard' is only available in local mode." >&2
+    exit 1
+  fi
+  run_openclaw onboard "$@" --skip-daemon
+  rm -rf "${OPENCLAW_STATE_DIR}/workspace/.git"
+}
+
+function dream() {
+  if docker_mode; then
+    docker exec \
+      -e GATEWAY_TOKEN="${GATEWAY_TOKEN}" \
+      bot-openclaw-gateway-1 \
+      openclaw system event \
+        --text "__openclaw_memory_core_short_term_promotion_dream__" \
+        --mode now
+  else
+    run_openclaw system event \
+      --text "__openclaw_memory_core_short_term_promotion_dream__" \
+      --mode now
+  fi
+}
+
+function exec_shell() {
+  if ! docker_mode; then
+    echo "'exec' is only available in Docker mode. Use 'openclaw ...' for local CLI commands." >&2
+    exit 1
+  fi
+  compose run --rm openclaw-cli /bin/bash
+}
+
+function attach() {
+  if ! docker_mode; then
+    echo "'attach' is only available in Docker mode." >&2
+    exit 1
+  fi
+  C=$(docker ps | grep openclaw-gateway | cut -f1 -d' ')
+  dattach "$C" node
+}
+
+function gw_watch {
+  (cd "${OPENCLAW_REPO_DIR}" && pnpm gateway:watch --raw-stream "$@")
+}
+
+function main() {
+  cmd="${1:-gateway}"
+  case "${cmd}" in
+    init)
+      shift
+      init_project "$@"
+      ;;
+    gateway|up) # build and run
+      start
+      ;;
+    gw-watch)
+      gw_watch
+      ;;
+    build)
+      build
+      ;;
+    configure)
+      configure
+      ;;
+    watch)  # local only
+      shift
+      watch "$@"
+      ;;
+    openclaw)
+      shift
+      run_openclaw "$@"
+      ;;
+    onboard)
+      shift
+      onboard "$@"
+      ;;
+    reset)
+      reset
+      ;;
+    # Docker only
+    compose)
+      compose build --pull
+      ;;
+    restart)
+      start
+      ;;
+    restart-only)
+      docker_restart_only
+      ;;
+    attach)
+      attach
+      ;;
+    down)
+      down
+      ;;
+    logs)
+      logs
+      ;;
+    # Stuff
+    dream)
+      dream
+      ;;
+    exec)
+      exec_shell
+      ;;
+    *)
+      echo "Usage: $0 {init|gateway|build|configure|watch|openclaw|onboard|reset|down|logs|exec|attach|restart|restart-only|dream|compose}" >&2
+      exit 1
+      ;;
+  esac
+}
+
+
+main "$@"
