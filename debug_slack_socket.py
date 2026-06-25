@@ -13,14 +13,11 @@ from slack_sdk.socket_mode.client import BaseSocketModeClient
 from slack_sdk.socket_mode.request import SocketModeRequest
 from slack_sdk.socket_mode.response import SocketModeResponse
 
-SLACK_APP_TOKEN_ENV = "SLACK_APP_TOKEN"
-
-
 def main() -> None:
     args = _parse_args()
     _configure_logging(args.sdk_log_level)
 
-    app_token = _required_env(SLACK_APP_TOKEN_ENV)
+    app_token = _required_env("OPENCLAW_SLACK_APP_TOKEN")
     socket_client = SocketModeClient(
         app_token=app_token,
         ping_interval=args.ping_interval_seconds,

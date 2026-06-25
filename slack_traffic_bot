@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CHANNEL=C0BAZKV4UUF
+INTERVAL_SECONDS=20
+USER_GROUPS=(S0BB618RJ3D) #S0BBA9VDRTQ)
+
+if [ -z "$DEBUG_SLACK_APP_TOKEN" ]; then
+  echo "Error: set DEBUG_SLACK_APP_TOKEN."
+  exit 1
+fi
+
+echo "Sending Slack heartbeats to channel $CHANNEL."
+
+send_message() {
+  local message="$1"
+  local timestamp=$(date +"%Y-%m-%d %H:%M:%S %Z")
+  local response
+  response=$(curl -sS -X POST "https://slack.com/api/chat.postMessage" \
+    -H "Authorization: Bearer $DEBUG_SLACK_APP_TOKEN" \
+    --data-urlencode "channel=$CHANNEL" \
+    --data-urlencode "text=$message")
+
+  if [[ "$response" != *'"ok":true'* ]]; then
+    echo "Slack API error at $timestamp:"
+    echo "$response"
+    exit 1
+  fi
+  echo "Sent $message"
+}
+
+send_message "Debug bot started..."
+while true; do
+  # send_message "Generic heartbeat: $(date +"%Y-%m-%d %H:%M:%S %Z")"
+  # echo "Sleeping for $INTERVAL_SECONDS seconds..."
+  # sleep "$INTERVAL_SECONDS"
+
+  for USER_GROUP in "${USER_GROUPS[@]}"; do
+    T=$(date +%s%N | md5sum | head -c 5)
+    send_message "<!subteam^$USER_GROUP> reply exactly with $T"
+    echo "Sleeping for $INTERVAL_SECONDS seconds..."
+    sleep "$INTERVAL_SECONDS"
+  done
+done

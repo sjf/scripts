@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e # exit on failed command
+set -u # fail on undefined variable
+
+source ~/oscripts/default-paths.sh
+
+if [[ ${#DEFAULT_PATHS[@]} -eq 0 ]]; then
+  git diff "$@"
+else
+  git diff "$@" -- "${DEFAULT_PATHS[@]}"
+fi

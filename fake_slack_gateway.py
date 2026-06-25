@@ -184,7 +184,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="openclaw-slack-router websocket URL",
     )
     parser.add_argument("--team-id", default="*", help="team_id to register for, or '*' catch-all")
-    parser.add_argument("--gateway-id", default="fake-gateway")
+    parser.add_argument("--gateway-id", default="gateway-placeholder-1")
     parser.add_argument("--token", default=None, help="gateway auth token; defaults to env")
     parser.add_argument(
         "--once", action="store_true", help="exit after the first disconnect/failure"

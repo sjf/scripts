@@ -10,7 +10,7 @@ if [[ -z "$REPO" ]]; then
   exit 1
 fi
 
-files_to_ignore=(extensions/canvas/src/host/a2ui/.bundle.hash pnpm-lock.yaml .pnpm-store)
+files_to_ignore=(  ) #extensions/canvas/src/host/a2ui/.bundle.hash pnpm-lock.yaml .pnpm-store)
 
 if (( ${#files_to_ignore[@]} > 0 )); then
     status_output=$(git status --porcelain -- "${files_to_ignore[@]}")
