@@ -16,7 +16,7 @@ CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || true)"
 REPO=$(git remote get-url origin 2>/dev/null | sed 's/.*\///' | sed 's/\.git$//')
 
 case "$REPO" in
-  sjf|"${MONOREPO:-}")
+  sjf|psyche-seek|"${MONOREPO:-}")
     MAIN=master
     ;;
   *)
@@ -71,13 +71,23 @@ function co() {
 
 
 NEED_POP=
+STASHED_SHA=
 
 function stash_before() {
   local NAME=${1:-}
-  if has_local_changes; then
+  # Only tracked changes matter here: untracked files survive checkout/rebase,
+  # and git stash below doesn't include them anyway.
+  if ! git diff-index --quiet HEAD -- ; then
     echo '----------- STASHING ----------'
+    local before
+    before=$(git rev-parse -q --verify refs/stash || true)
     git stash -q -m "$NAME"  # --include-untracked turned off for performance
-    NEED_POP=1
+    STASHED_SHA=$(git rev-parse -q --verify refs/stash || true)
+    if [[ -n $STASHED_SHA && "$STASHED_SHA" != "$before" ]]; then
+      NEED_POP=1
+    else
+      echo '----------- nothing was stashed ----------'
+    fi
   else
     echo '----------- not stashing ----------'
   fi
@@ -86,6 +96,11 @@ function stash_before() {
 function pop_after() {
   if [[ -n $NEED_POP ]]; then
     echo '----------- POPPING ----------'
+    if [[ "$(git rev-parse -q --verify refs/stash || true)" != "$STASHED_SHA" ]]; then
+      echo "top of stash is not the entry stash_before created; not popping"
+      NEED_POP=
+      return 1
+    fi
     git stash pop -q
     NEED_POP=
   else
