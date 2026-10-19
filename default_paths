@@ -3,4 +3,4 @@
 set -u #fail on undefined variable
 # set -x #print commands
 
-source ~/oscripts/default-paths.sh && echo $DEFAULT_PATHS
+source ~/oscripts/default-paths.sh && echo ${DEFAULT_PATHS[@]}
